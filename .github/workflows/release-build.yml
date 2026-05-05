@@ -44,4 +44,4 @@ jobs:
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: paypay2mf-${{ github.event.release.tag_name }}.zip
+          files: paypay2mfjs-${{ github.event.release.tag_name }}.zip
