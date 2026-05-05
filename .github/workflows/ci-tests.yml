@@ -23,4 +23,7 @@ jobs:
         run: npm ci
 
       - name: Dry-run smoke check
-        run: npm run import:paypay -- --csv="samples/paypay_sample.csv" --dry-run
+        run: npm run smoke:dry-run
+
+      - name: Run tests
+        run: npm test
