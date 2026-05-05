@@ -49,9 +49,16 @@
 | categoryMap | object | 中カテゴリ名 -> 大カテゴリ名の対応 |
 | duplicateDetection.backend | string | `local` または `gcloud` |
 | duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
-| duplicateDetection.localStorePath | string | local backend の履歴 JSON パス（既定値 `logs/processed.json`） |
+| duplicateDetection.localStorePath | string | local backend の履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
 | gcloudCredentialsPath | string | GCloud サービスアカウント JSON パス（gcloud 使用時に必須） |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
+
+#### パス解決について
+
+`duplicateDetection.localStorePath` に相対パスを指定した場合、その解決基準は config.json のあるディレクトリです。例えば、config.json が `/workspace/config.json` の場合：
+
+- `logs/processed.json` → `/workspace/logs/processed.json`
+- `/tmp/processed.json` （絶対パス） → `/tmp/processed.json` （そのまま使用）
 
 ```json
 {
