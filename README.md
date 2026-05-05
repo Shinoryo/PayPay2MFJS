@@ -169,8 +169,8 @@ npm run smoke:dry-run
 | ---- | ---- |
 | OS | Windows 10 / Windows 11 |
 | Node.js | 18 以上 |
-| ブラウザー | Microsoft Edge（stable） |
-| 主要ライブラリー | playwright |
+| ブラウザー | Microsoft Edge（stable、最新版推奨） |
+| ライブラリー | playwright 1.55.0 以上、@google-cloud/firestore 8.5.0 以上 |
 
 ## 処理詳細
 
@@ -234,12 +234,12 @@ flowchart TD
 
 MIT License
 
-### 使用ライブラリー
+### 使用ライブラリーのライセンス
 
-| ライブラリー名 | 用途 |
-| ---- | ---- |
-| playwright | ブラウザー自動操作 |
-| @google-cloud/firestore | 重複検知履歴の gcloud backend（任意） |
+| ライブラリー名 | バージョン | ライセンス |
+| ---- | ---- | ---- |
+| playwright | 1.55.0 以上 | Apache-2.0 |
+| @google-cloud/firestore | 8.5.0 以上 | Apache-2.0 |
 
 ## 開発詳細
 
