@@ -3,6 +3,11 @@ const path = require('node:path');
 const readline = require('node:readline/promises');
 const { stdin, stdout } = require('node:process');
 const { chromium } = require('playwright');
+const {
+  createDetector,
+  DuplicateHistoryError,
+  DuplicateHistorySaveError
+} = require('./duplicate-detector');
 
 const DIRECTION_IN = 'in';
 const DIRECTION_OUT = 'out';
@@ -73,11 +78,21 @@ function parseJsonWithBomSupport(text) {
 }
 
 function normalizeConfig(userConfig) {
+  const duplicateDetection = userConfig.duplicateDetection && typeof userConfig.duplicateDetection === 'object'
+    ? userConfig.duplicateDetection
+    : {};
+
   return {
     mfAccount: userConfig.mfAccount || 'PayPay',
     excludePrefixes: Array.isArray(userConfig.excludePrefixes) ? userConfig.excludePrefixes : ['PPCD_A_'],
     mappingRules: Array.isArray(userConfig.mappingRules) ? userConfig.mappingRules : [],
     categoryMap: userConfig.categoryMap && typeof userConfig.categoryMap === 'object' ? userConfig.categoryMap : {},
+    duplicateDetection: {
+      backend: duplicateDetection.backend || 'local',
+      databaseId: duplicateDetection.databaseId || '(default)',
+      localStorePath: duplicateDetection.localStorePath || null
+    },
+    gcloudCredentialsPath: userConfig.gcloudCredentialsPath || null,
     advanced: {
       screenshotOnError: Boolean(userConfig.advanced && userConfig.advanced.screenshotOnError)
     }
@@ -85,11 +100,16 @@ function normalizeConfig(userConfig) {
 }
 
 function loadRuntimeConfig(configPath) {
+  const resolvedConfigPath = path.resolve(configPath);
   const userConfig = normalizeConfig(loadJsonIfExists(configPath, {}));
   const mfmeConfig = parseJsonWithBomSupport(
     fs.readFileSync(path.resolve(__dirname, 'mfme.config.json'), 'utf8')
   );
-  return { userConfig, mfmeConfig };
+  return {
+    userConfig,
+    mfmeConfig,
+    runtimeBaseDir: path.dirname(resolvedConfigPath)
+  };
 }
 
 function parseCsvLine(line) {
@@ -216,6 +236,21 @@ function applyExclude(transactions, prefixes) {
   return { passed, excluded };
 }
 
+async function applyDuplicateDetection(transactions, detector) {
+  const passed = [];
+  const duplicates = [];
+
+  for (const tx of transactions) {
+    if (await detector.isDuplicate(tx)) {
+      duplicates.push(tx);
+      continue;
+    }
+    passed.push(tx);
+  }
+
+  return { passed, duplicates };
+}
+
 function loadCsv(csvPath) {
   const rawText = fs.readFileSync(path.resolve(csvPath), 'utf8');
   const text = rawText.startsWith(UTF8_BOM) ? rawText.slice(1) : rawText;
@@ -255,11 +290,18 @@ function loadCsv(csvPath) {
       transactions.push({
         rowIndex: index,
         date: parseDate(row['取引日']),
+        dateText: String(row['取引日'] || '').trim(),
         amount,
+        outAmount,
+        inAmount,
         direction,
         memo,
         merchant,
         content: String(row['取引内容'] || '').trim(),
+        method: String(row['取引方法'] || '').trim(),
+        paymentType: String(row['支払い区分'] || '').trim(),
+        user: String(row['利用者'] || '').trim(),
+        rowFingerprint: '',
         category: DEFAULT_CATEGORY,
         transactionId: String(row['取引番号'] || '').trim() || null
       });
@@ -384,7 +426,7 @@ async function waitSubmitOutcome(page, mfmeConfig) {
   throw new Error('submit result could not be determined');
 }
 
-async function importTransactions(page, transactions, runtimeConfig, options) {
+async function importTransactions(page, transactions, runtimeConfig, options, detector) {
   const { userConfig, mfmeConfig } = runtimeConfig;
   const selectors = mfmeConfig.selectors;
   const summary = { success: 0, failed: 0, skipped: 0 };
@@ -412,8 +454,19 @@ async function importTransactions(page, transactions, runtimeConfig, options) {
       await page.click(selectors.submitButton);
 
       await waitSubmitOutcome(page, mfmeConfig);
+      try {
+        await detector.markProcessed(tx);
+      } catch (error) {
+        throw new DuplicateHistorySaveError(
+          `failed to update duplicate history for row=${tx.rowIndex}`
+        );
+      }
       summary.success += 1;
     } catch (error) {
+      if (error instanceof DuplicateHistorySaveError || error instanceof DuplicateHistoryError) {
+        throw error;
+      }
+
       summary.failed += 1;
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[record-failed] row=${tx.rowIndex} merchant=${tx.merchant} error=${message}`);
@@ -432,6 +485,12 @@ async function importTransactions(page, transactions, runtimeConfig, options) {
   if (options.keepOpen && !options.headless) {
     console.log('keep-open enabled. Press Enter to close browser.');
     await askForEnter('Press Enter to close: ');
+  }
+
+  try {
+    await detector.flush();
+  } catch (error) {
+    throw new DuplicateHistorySaveError('failed to flush duplicate history');
   }
 
   return summary;
@@ -459,34 +518,58 @@ async function main() {
 
   const mapped = applyMapping(csvResult.transactions, runtimeConfig.userConfig.mappingRules);
   const filtered = applyExclude(mapped, runtimeConfig.userConfig.excludePrefixes);
+  let deduplicated;
 
-  if (args.dryRun) {
-    console.log('dry-run mode');
-    console.log(`total=${csvResult.transactions.length}`);
-    console.log(`parse_failures=${csvResult.parseFailures.length}`);
-    console.log(`excluded=${filtered.excluded.length}`);
-    console.log(`target=${filtered.passed.length}`);
-    return;
-  }
-
-  let context;
   try {
-    const browser = await launchBrowser(args.headless, runtimeConfig.mfmeConfig);
-    context = browser.context;
-    await ensureLoggedIn(browser.page, args, runtimeConfig.mfmeConfig);
+    const detector = await createDetector(
+      {
+        ...runtimeConfig.userConfig,
+        dryRun: args.dryRun
+      },
+      runtimeConfig.runtimeBaseDir
+    );
+    deduplicated = await applyDuplicateDetection(filtered.passed, detector);
 
-    const summary = await importTransactions(browser.page, filtered.passed, runtimeConfig, args);
-    console.log(`success=${summary.success}`);
-    console.log(`failed=${summary.failed}`);
-    console.log(`skipped=${summary.skipped + filtered.excluded.length}`);
-    console.log(`parse_failures=${csvResult.parseFailures.length}`);
+    if (args.dryRun) {
+      console.log('dry-run mode');
+      console.log(`total=${csvResult.transactions.length}`);
+      console.log(`parse_failures=${csvResult.parseFailures.length}`);
+      console.log(`excluded=${filtered.excluded.length}`);
+      console.log(`duplicates=${deduplicated.duplicates.length}`);
+      console.log(`target=${deduplicated.passed.length}`);
+      return;
+    }
+
+    let context;
+    try {
+      const browser = await launchBrowser(args.headless, runtimeConfig.mfmeConfig);
+      context = browser.context;
+      await ensureLoggedIn(browser.page, args, runtimeConfig.mfmeConfig);
+
+      const summary = await importTransactions(
+        browser.page,
+        deduplicated.passed,
+        runtimeConfig,
+        args,
+        detector
+      );
+      console.log(`success=${summary.success}`);
+      console.log(`failed=${summary.failed}`);
+      console.log(`skipped=${summary.skipped + filtered.excluded.length + deduplicated.duplicates.length}`);
+      console.log(`excluded=${filtered.excluded.length}`);
+      console.log(`duplicates=${deduplicated.duplicates.length}`);
+      console.log(`parse_failures=${csvResult.parseFailures.length}`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    } finally {
+      if (context) {
+        await context.close();
+      }
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
-  } finally {
-    if (context) {
-      await context.close();
-    }
   }
 }
 

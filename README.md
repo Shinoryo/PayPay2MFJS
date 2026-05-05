@@ -47,6 +47,10 @@
 | excludePrefixes | string[] | 取引番号プレフィックス一致で除外 |
 | mappingRules | object[] | 取引先キーワードによるカテゴリ割り当て |
 | categoryMap | object | 中カテゴリ名 -> 大カテゴリ名の対応 |
+| duplicateDetection.backend | string | `local` または `gcloud` |
+| duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
+| duplicateDetection.localStorePath | string | local backend の履歴 JSON パス（既定値 `logs/processed.json`） |
+| gcloudCredentialsPath | string | GCloud サービスアカウント JSON パス（gcloud 使用時に必須） |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
 
 ```json
@@ -65,6 +69,12 @@
     "categoryMap": {
         "Food": "Living"
     },
+    "duplicateDetection": {
+        "backend": "local",
+        "databaseId": "(default)",
+        "localStorePath": "logs/processed.json"
+    },
+    "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
     "advanced": {
         "screenshotOnError": true
     }
@@ -89,6 +99,9 @@
 | 入金金額（円） | 収入金額 |
 | 取引内容 | 取引内容テキスト |
 | 取引番号 | 除外判定に使用 |
+| 取引方法 | 重複指紋の入力要素 |
+| 支払い区分 | 重複指紋の入力要素 |
+| 利用者 | 重複指紋の入力要素 |
 | 海外出金金額 | メモ補足情報 |
 | 通貨 | メモ補足情報 |
 
@@ -101,6 +114,8 @@
 - success: 登録成功件数
 - failed: 登録失敗件数
 - skipped: 除外などでスキップされた件数
+- excluded: プレフィックス除外件数
+- duplicates: 重複検知でスキップした件数
 - parse_failures: CSV 解析失敗件数
 
 dry-run 時は、以下の集計のみを表示する。
@@ -108,6 +123,7 @@ dry-run 時は、以下の集計のみを表示する。
 - total
 - parse_failures
 - excluded
+- duplicates
 - target
 
 ### 生成ファイル
@@ -116,6 +132,7 @@ dry-run 時は、以下の集計のみを表示する。
 | ---- | ---- |
 | .paypay2mf-profile/ | Playwright persistent profile（ログインセッション保持） |
 | artifacts/ | 登録失敗時のスクリーンショット保存先 |
+| logs/processed.json | local backend の重複履歴（`row_fingerprints` 配列） |
 
 ## 実行方法
 
@@ -195,11 +212,14 @@ dry-run mode
 total=120
 parse_failures=2
 excluded=15
-target=103
+duplicates=7
+target=96
 
 success=100
 failed=3
-skipped=17
+skipped=24
+excluded=15
+duplicates=9
 parse_failures=2
 
 [record-failed] row=23 merchant=Example Store error=account not found in MF dropdown: PayPay
@@ -217,6 +237,7 @@ MIT License。
 | ライブラリー名 | 用途 |
 | ---- | ---- |
 | playwright | ブラウザー自動操作 |
+| @google-cloud/firestore | 重複検知履歴の gcloud backend（任意） |
 
 ## 開発詳細
 

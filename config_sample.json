@@ -127,6 +127,12 @@
     "寄付金": "その他",
     "雑費": "その他"
   },
+  "duplicateDetection": {
+    "backend": "local",
+    "databaseId": "(default)",
+    "localStorePath": "logs/processed.json"
+  },
+  "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
   "advanced": {
     "screenshotOnError": true
   }

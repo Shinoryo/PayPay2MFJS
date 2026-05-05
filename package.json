@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "paypay2mfjs",
   "version": "1.0.0",
   "private": true,
@@ -7,9 +7,11 @@
     "node": ">=18"
   },
   "scripts": {
-    "import:paypay": "node src/import-paypay-to-mfme.js"
+    "import:paypay": "node src/import-paypay-to-mfme.js",
+    "test": "node --test"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^8.5.0",
     "playwright": "^1.55.0"
   }
 }
