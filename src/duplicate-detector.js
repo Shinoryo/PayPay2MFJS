@@ -265,7 +265,9 @@ async function createDetector(userConfig, runtimeBaseDir) {
   }
 
   const storePath = config.localStorePath
-    ? path.resolve(config.localStorePath)
+    ? path.isAbsolute(config.localStorePath)
+      ? config.localStorePath
+      : path.resolve(runtimeBaseDir, config.localStorePath)
     : defaultLocalStorePath(runtimeBaseDir);
 
   return new LocalDuplicateDetector(storePath, config.dryRun);
