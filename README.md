@@ -232,7 +232,7 @@ parse_failures=2
 
 ### 本プログラムのライセンス
 
-MIT License。
+MIT License
 
 ### 使用ライブラリー
 
