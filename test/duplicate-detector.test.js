@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const Module = require('node:module');
 const path = require('node:path');
 const os = require('node:os');
 
@@ -15,6 +16,53 @@ const {
 
 function createTempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'paypay2mfjs-'));
+}
+
+async function createGCloudDetectorWithMock(t, runtimeBaseDir, gcloudCredentialsPath) {
+  const modulePath = require.resolve('../src/duplicate-detector');
+  const firestoreModuleId = '@google-cloud/firestore';
+  const originalCacheEntry = require.cache[modulePath];
+  const originalRequire = Module.prototype.require;
+  let firestoreOptions;
+
+  class FirestoreMock {
+    constructor(options) {
+      firestoreOptions = options;
+    }
+  }
+
+  t.after(() => {
+    Module.prototype.require = originalRequire;
+
+    if (originalCacheEntry) {
+      require.cache[modulePath] = originalCacheEntry;
+    } else {
+      delete require.cache[modulePath];
+    }
+  });
+
+  Module.prototype.require = function patchedRequire(request) {
+    if (request === firestoreModuleId) {
+      return { Firestore: FirestoreMock };
+    }
+
+    return originalRequire.apply(this, arguments);
+  };
+
+  delete require.cache[modulePath];
+  const { createDetector: createDetectorWithMock } = require('../src/duplicate-detector');
+  const detector = await createDetectorWithMock(
+    {
+      dryRun: false,
+      duplicateDetection: {
+        backend: 'gcloud'
+      },
+      gcloudCredentialsPath
+    },
+    runtimeBaseDir
+  );
+
+  return { detector, firestoreOptions };
 }
 
 test('buildRowFingerprint returns Python-compatible hash for fixed vector', () => {
@@ -152,6 +200,35 @@ test('createDetector with gcloud backend requires gcloudCredentialsPath', async 
     ),
     DuplicateHistoryError
   );
+});
+
+test('createDetector resolves relative gcloudCredentialsPath from runtimeBaseDir', async (t) => {
+  const runtimeBaseDir = path.join(createTempDir(), 'config-root');
+  const relativePath = path.join('secrets', 'service-account.json');
+  const { detector, firestoreOptions } = await createGCloudDetectorWithMock(
+    t,
+    runtimeBaseDir,
+    relativePath
+  );
+
+  assert.equal(typeof detector.isDuplicate, 'function');
+  assert.equal(
+    firestoreOptions.keyFilename,
+    path.resolve(runtimeBaseDir, relativePath)
+  );
+  assert.equal(firestoreOptions.databaseId, '(default)');
+});
+
+test('createDetector keeps absolute gcloudCredentialsPath unchanged', async (t) => {
+  const runtimeBaseDir = createTempDir();
+  const absolutePath = path.resolve(runtimeBaseDir, 'secrets', 'service-account.json');
+  const { firestoreOptions } = await createGCloudDetectorWithMock(
+    t,
+    runtimeBaseDir,
+    absolutePath
+  );
+
+  assert.equal(firestoreOptions.keyFilename, absolutePath);
 });
 
 test('createDetector falls back to local backend for unknown backend values', async () => {

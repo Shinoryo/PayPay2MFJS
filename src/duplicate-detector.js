@@ -256,8 +256,12 @@ async function createDetector(userConfig, runtimeBaseDir) {
       throw new DuplicateHistoryError("依存関係 '@google-cloud/firestore' が見つかりません。gcloud バックエンドを使うにはインストールしてください。");
     }
 
+    const keyFilename = path.isAbsolute(config.gcloudCredentialsPath)
+      ? config.gcloudCredentialsPath
+      : path.resolve(runtimeBaseDir, config.gcloudCredentialsPath);
+
     const client = new Firestore({
-      keyFilename: path.resolve(config.gcloudCredentialsPath),
+      keyFilename,
       databaseId: config.databaseId
     });
 
