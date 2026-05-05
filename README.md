@@ -210,22 +210,22 @@ flowchart TD
 ### 主な出力メッセージ例
 
 ```text
-dry-run mode
-total=120
-parse_failures=2
-excluded=15
-duplicates=7
-target=96
+ドライランモード
+合計=120
+解析失敗=2
+除外=15
+重複=7
+対象=96
 
-success=100
-failed=3
-skipped=24
-excluded=15
-duplicates=9
-parse_failures=2
+成功=100
+失敗=3
+スキップ=24
+除外=15
+重複=9
+解析失敗=2
 
-[record-failed] row=23 merchant=Example Store error=account not found in MF dropdown: PayPay
-[artifact] screenshot=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
+[登録失敗] 行=23 取引先=Example Store エラー=Money Forwardの口座選択に指定口座が見つかりません: PayPay
+[成果物] スクリーンショット=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
 ```
 
 ## ライセンス
@@ -248,9 +248,12 @@ MIT License
 | 項目 | 内容 |
 | ---- | ---- |
 | 言語 | JavaScript（Node.js） |
-| ランタイム | Node.js 18+ |
-| 自動化基盤 | Playwright |
-| 対象ブラウザー | Microsoft Edge |
+| ランタイム | Node.js 24.12.0 |
+| npm | 11.7.0 |
+| 自動化基盤 | Playwright 1.59.1 |
+| 主要ライブラリー | @google-cloud/firestore 8.5.0 |
+| 対象ブラウザー | Microsoft Edge 147.0.3912.98 |
+| エディター | Visual Studio Code 1.118.1 |
 
 ### プロジェクト構成（主要ファイル）
 

@@ -17,7 +17,7 @@ async function main() {
   const databaseId = process.env.PAYPAY2MF_GCLOUD_DATABASE_ID || '(default)';
 
   if (!credentialsPath || !fs.existsSync(path.resolve(credentialsPath))) {
-    console.log('gcloud-e2e skipped: set PAYPAY2MF_GCLOUD_CREDENTIALS_PATH to a valid file');
+    console.log('gcloud-e2e をスキップしました: PAYPAY2MF_GCLOUD_CREDENTIALS_PATH に有効なファイルを設定してください');
     return;
   }
 
@@ -51,13 +51,13 @@ async function main() {
 
   const wasDuplicate = await detector.isDuplicate(tx);
   if (wasDuplicate) {
-    throw new Error('probe transaction already exists; retry once');
+    throw new Error('検証用トランザクションが既に存在します。再実行してください');
   }
 
   await detector.markProcessed(tx);
   const nowDuplicate = await detector.isDuplicate(tx);
   if (!nowDuplicate) {
-    throw new Error('gcloud duplicate check failed after markProcessed');
+    throw new Error('markProcessed 実行後の gcloud 重複判定に失敗しました');
   }
 
   const firestore = new Firestore({
@@ -66,7 +66,7 @@ async function main() {
   });
 
   await firestore.collection('paypay_transactions').doc(rowFingerprint).delete();
-  console.log('gcloud-e2e passed');
+  console.log('gcloud-e2e 成功');
 }
 
 main().catch((error) => {

@@ -142,13 +142,13 @@ function main() {
   );
 
   if (python.error) {
-    console.error(`failed to execute python: ${python.error.message}`);
+    console.error(`Python実行に失敗しました: ${python.error.message}`);
     process.exitCode = 2;
     return;
   }
 
   if (python.status !== 0) {
-    console.error(python.stderr || python.stdout || 'python script failed');
+    console.error(python.stderr || python.stdout || 'Pythonスクリプトの実行に失敗しました');
     process.exitCode = 2;
     return;
   }
@@ -163,24 +163,24 @@ function main() {
   const missingInPython = [...jsSet].filter((value) => !pySet.has(value));
   const missingInJs = [...pySet].filter((value) => !jsSet.has(value));
 
-  console.log(`js_count=${jsSet.size}`);
-  console.log(`py_count=${pySet.size}`);
-  console.log(`missing_in_python=${missingInPython.length}`);
-  console.log(`missing_in_js=${missingInJs.length}`);
+  console.log(`JS件数=${jsSet.size}`);
+  console.log(`Python件数=${pySet.size}`);
+  console.log(`Python側不足=${missingInPython.length}`);
+  console.log(`JS側不足=${missingInJs.length}`);
 
   if (missingInPython.length > 0 || missingInJs.length > 0) {
-    console.error('fingerprint set mismatch detected');
+    console.error('フィンガープリント集合の不一致を検出しました');
     if (missingInPython.length > 0) {
-      console.error(`sample_missing_in_python=${missingInPython.slice(0, 5).join(',')}`);
+      console.error(`Python側不足サンプル=${missingInPython.slice(0, 5).join(',')}`);
     }
     if (missingInJs.length > 0) {
-      console.error(`sample_missing_in_js=${missingInJs.slice(0, 5).join(',')}`);
+      console.error(`JS側不足サンプル=${missingInJs.slice(0, 5).join(',')}`);
     }
     process.exitCode = 1;
     return;
   }
 
-  console.log('fingerprint sets match');
+  console.log('フィンガープリント集合は一致しています');
 }
 
 main();

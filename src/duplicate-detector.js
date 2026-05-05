@@ -140,24 +140,24 @@ class LocalDuplicateDetector {
       this.dirty = false;
     } catch (error) {
       const backupPath = this.backupCorruptedStore();
-      throw new DuplicateHistoryError(`processed.json is corrupted and cannot be loaded. backup=${backupPath}`);
+      throw new DuplicateHistoryError(`processed.json が破損しており読み込めません。backup=${backupPath}`);
     }
   }
 
   validateLoadedData(loaded) {
     if (!loaded || typeof loaded !== 'object' || Array.isArray(loaded)) {
-      throw new TypeError('processed.json root must be object');
+      throw new TypeError('processed.json のルートはオブジェクトである必要があります');
     }
 
     loaded[KEY_ROW_FINGERPRINTS] = loaded[KEY_ROW_FINGERPRINTS] || [];
 
     if (!Array.isArray(loaded[KEY_ROW_FINGERPRINTS])) {
-      throw new TypeError('row_fingerprints must be list');
+      throw new TypeError('row_fingerprints は配列である必要があります');
     }
 
     for (const value of loaded[KEY_ROW_FINGERPRINTS]) {
       if (typeof value !== 'string') {
-        throw new TypeError('row_fingerprints items must be string');
+        throw new TypeError('row_fingerprints の要素は文字列である必要があります');
       }
     }
 
@@ -201,7 +201,7 @@ class LocalDuplicateDetector {
       fs.renameSync(tempPath, this.storePath);
       this.dirty = false;
     } catch (error) {
-      throw new DuplicateHistorySaveError('failed to save processed.json');
+      throw new DuplicateHistorySaveError('processed.json の保存に失敗しました');
     }
   }
 }
@@ -240,14 +240,14 @@ async function createDetector(userConfig, runtimeBaseDir) {
 
   if (config.backend === 'gcloud') {
     if (!config.gcloudCredentialsPath) {
-      throw new DuplicateHistoryError('gcloudCredentialsPath is required when duplicateDetection.backend is gcloud');
+      throw new DuplicateHistoryError('duplicateDetection.backend が gcloud の場合、gcloudCredentialsPath は必須です');
     }
 
     let Firestore;
     try {
       ({ Firestore } = require('@google-cloud/firestore'));
     } catch (error) {
-      throw new DuplicateHistoryError("Missing dependency '@google-cloud/firestore'. Install it to use gcloud backend.");
+      throw new DuplicateHistoryError("依存関係 '@google-cloud/firestore' が見つかりません。gcloud バックエンドを使うにはインストールしてください。");
     }
 
     const client = new Firestore({

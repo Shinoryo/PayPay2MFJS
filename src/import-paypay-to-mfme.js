@@ -164,7 +164,7 @@ function formatDateForForm(date) {
 function parseDate(raw) {
   const match = String(raw).trim().match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
   if (!match) {
-    throw new Error(`invalid date format: ${raw}`);
+    throw new Error(`日付形式が不正です: ${raw}`);
   }
 
   const [, year, month, day, hour, minute, second] = match;
@@ -173,10 +173,10 @@ function parseDate(raw) {
 
 function resolveDirection(outAmount, inAmount) {
   if (outAmount > 0 && inAmount > 0) {
-    throw new Error('both out and in amounts are positive');
+    throw new Error('出金金額と入金金額の両方が正の値です');
   }
   if (outAmount === 0 && inAmount === 0) {
-    throw new Error('both out and in amounts are zero');
+    throw new Error('出金金額と入金金額の両方が0です');
   }
   if (outAmount > 0) {
     return { amount: outAmount, direction: DIRECTION_OUT };
@@ -277,14 +277,14 @@ function loadCsv(csvPath) {
       const { amount, direction } = resolveDirection(outAmount, inAmount);
       const merchant = String(row['取引先'] || '').trim();
       if (!merchant) {
-        throw new Error('merchant is required');
+        throw new Error('取引先は必須です');
       }
 
       const foreign = String(row['海外出金金額'] || '-').trim();
       const currency = String(row['通貨'] || '-').trim();
       let memo = merchant;
       if (foreign !== '-' && foreign.length > 0) {
-        memo = `${merchant} (foreign: ${foreign} ${currency})`;
+        memo = `${merchant} (外貨: ${foreign} ${currency})`;
       }
 
       transactions.push({
@@ -349,15 +349,15 @@ async function ensureLoggedIn(page, options, mfmeConfig) {
   }
 
   if (options.headless) {
-    throw new Error('headless mode cannot complete first login. Run once without --headless.');
+    throw new Error('headlessモードでは初回ログインを完了できません。--headless なしで一度実行してください。');
   }
 
-  console.log('Login required. Complete login in the browser, open Money Forward home/cf page, then press Enter.');
-  await askForEnter('Press Enter after login: ');
+  console.log('ログインが必要です。ブラウザでログイン後、Money Forwardのホーム/家計簿画面を開いてEnterを押してください。');
+  await askForEnter('ログイン後にEnter: ');
 
   await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
   if (page.url().includes('/sign_in')) {
-    throw new Error('login was not completed. Still on sign-in page.');
+    throw new Error('ログインが完了していません。サインイン画面のままです。');
   }
 }
 
@@ -382,7 +382,7 @@ async function selectAccount(page, selectors, mfAccount) {
   }
 
   if (!matchedValue) {
-    throw new Error(`account not found in MF dropdown: ${mfAccount}`);
+    throw new Error(`Money Forwardの口座選択に指定口座が見つかりません: ${mfAccount}`);
   }
 
   await page.selectOption(selectors.accountSelect, matchedValue);
@@ -418,12 +418,12 @@ async function waitSubmitOutcome(page, mfmeConfig) {
   for (const selector of mfmeConfig.submitErrorSelectors) {
     const errorLocator = page.locator(`${mfmeConfig.selectors.manualFormModal} ${selector}`).first();
     if (await errorLocator.isVisible().catch(() => false)) {
-      const detail = ((await errorLocator.innerText().catch(() => '')) || 'unknown submit error').trim();
+      const detail = ((await errorLocator.innerText().catch(() => '')) || '送信時の不明なエラー').trim();
       throw new Error(detail);
     }
   }
 
-  throw new Error('submit result could not be determined');
+  throw new Error('登録結果を判定できませんでした');
 }
 
 async function importTransactions(page, transactions, runtimeConfig, options, detector) {
@@ -458,7 +458,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
         await detector.markProcessed(tx);
       } catch (error) {
         throw new DuplicateHistorySaveError(
-          `failed to update duplicate history for row=${tx.rowIndex}`
+          `重複履歴の更新に失敗しました row=${tx.rowIndex}`
         );
       }
       summary.success += 1;
@@ -469,7 +469,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
 
       summary.failed += 1;
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[record-failed] row=${tx.rowIndex} merchant=${tx.merchant} error=${message}`);
+      console.error(`[登録失敗] 行=${tx.rowIndex} 取引先=${tx.merchant} エラー=${message}`);
 
       if (userConfig.advanced.screenshotOnError) {
         const outPath = path.resolve(
@@ -477,20 +477,20 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
           `failed-row-${tx.rowIndex}-${Date.now()}.png`
         );
         await page.screenshot({ path: outPath, fullPage: true });
-        console.error(`[artifact] screenshot=${outPath}`);
+        console.error(`[成果物] スクリーンショット=${outPath}`);
       }
     }
   }
 
   if (options.keepOpen && !options.headless) {
-    console.log('keep-open enabled. Press Enter to close browser.');
-    await askForEnter('Press Enter to close: ');
+    console.log('--keep-open が有効です。ブラウザを閉じるにはEnterを押してください。');
+    await askForEnter('終了するにはEnter: ');
   }
 
   try {
     await detector.flush();
   } catch (error) {
-    throw new DuplicateHistorySaveError('failed to flush duplicate history');
+    throw new DuplicateHistorySaveError('重複履歴の保存確定に失敗しました');
   }
 
   return summary;
@@ -499,7 +499,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.csv) {
-    console.error('Missing required argument: --csv=<path>');
+    console.error('必須引数が不足しています: --csv=<path>');
     process.exitCode = 1;
     return;
   }
@@ -531,12 +531,12 @@ async function main() {
     deduplicated = await applyDuplicateDetection(filtered.passed, detector);
 
     if (args.dryRun) {
-      console.log('dry-run mode');
-      console.log(`total=${csvResult.transactions.length}`);
-      console.log(`parse_failures=${csvResult.parseFailures.length}`);
-      console.log(`excluded=${filtered.excluded.length}`);
-      console.log(`duplicates=${deduplicated.duplicates.length}`);
-      console.log(`target=${deduplicated.passed.length}`);
+      console.log('ドライランモード');
+      console.log(`合計=${csvResult.transactions.length}`);
+      console.log(`解析失敗=${csvResult.parseFailures.length}`);
+      console.log(`除外=${filtered.excluded.length}`);
+      console.log(`重複=${deduplicated.duplicates.length}`);
+      console.log(`対象=${deduplicated.passed.length}`);
       return;
     }
 
@@ -553,12 +553,12 @@ async function main() {
         args,
         detector
       );
-      console.log(`success=${summary.success}`);
-      console.log(`failed=${summary.failed}`);
-      console.log(`skipped=${summary.skipped + filtered.excluded.length + deduplicated.duplicates.length}`);
-      console.log(`excluded=${filtered.excluded.length}`);
-      console.log(`duplicates=${deduplicated.duplicates.length}`);
-      console.log(`parse_failures=${csvResult.parseFailures.length}`);
+      console.log(`成功=${summary.success}`);
+      console.log(`失敗=${summary.failed}`);
+      console.log(`スキップ=${summary.skipped + filtered.excluded.length + deduplicated.duplicates.length}`);
+      console.log(`除外=${filtered.excluded.length}`);
+      console.log(`重複=${deduplicated.duplicates.length}`);
+      console.log(`解析失敗=${csvResult.parseFailures.length}`);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
