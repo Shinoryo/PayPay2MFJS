@@ -1,0 +1,12 @@
+node_modules/
+.paypay2mf-profile/
+artifacts/
+logs/
+
+# Local runtime config/data
+config.json
+paypay_history.csv
+secrets/
+
+# GitHub Copilot
+AGENTS.md

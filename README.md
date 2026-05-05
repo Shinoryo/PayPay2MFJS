@@ -4,127 +4,207 @@
 
 ### 背景・目的
 
-背景：CSVデータの手動処理に時間と手間がかかっている。
+背景：PayPay 利用明細 CSV を Money Forward ME へ手入力する作業に手間がかかる。
 
-目的：CSVファイルの検証・変換・PDF出力を自動化し、業務効率を向上させる。
+目的：CSV の読み取り、仕訳ルール適用、Money Forward ME への登録を自動化し、登録作業の時間を短縮する。
 
 ### 機能一覧
 
-* このプログラムは、指定された入力ディレクトリからCSVファイルを読み込み、設定ファイルの内容に基づいて処理を行います。
-* 処理中にネットワーク接続が必要な場合は、接続失敗時にリトライ機能を用いて再試行します。
-* 最終的に処理結果をPDF形式で出力し、ログファイルに実行状況を記録します。
+- PayPay の CSV（UTF-8 / UTF-8 BOM）を読み込み、取引データを解析する。
+- 取引番号プレフィックス除外とカテゴリマッピングを設定ファイルで制御できる。
+- Playwright の persistent profile により、初回ログイン後は再ログインなしで実行できる。
+- dry-run モードで登録前に件数確認のみ実行できる。
+- 登録失敗時にスクリーンショットを保存できる。
 
 ## 入力
 
-### ファイル（JSON用テンプレート）
+### コマンドライン引数
+
+| 引数 | 必須 | 説明 |
+| ---- | ---- | ---- |
+| `--csv=<path>` | 必須 | PayPay CSV ファイルパス |
+| `--config=<path>` | 任意 | 設定 JSON ファイルパス（既定値: config.json） |
+| --headless | 任意 | Edge をヘッドレスで起動 |
+| --dry-run | 任意 | 解析とフィルタのみ実行し、MF へ登録しない |
+| --keep-open | 任意 | 終了時にブラウザーを閉じず Enter 待ちする（headed 時のみ） |
+
+補足：--csv が未指定の場合は終了コード 1 で終了する。
+
+### ファイル（JSON 設定）
 
 | 項目 | 内容 |
 | ---- | ---- |
-| ファイル名 | `settings.json` |
-| 配置場所 | 任意 |
+| テンプレート | config_sample.json |
+| ユーザー設定ファイル名 | config.json（任意のパス指定も可） |
 | 形式 | JSON |
-| エンコーディング | UTF-8(BOM付き可) |
-| 内容概要 | 設定ファイル |
+| エンコーディング | UTF-8 / UTF-8 BOM |
 
-| キー名 | データ型 | 説明 | 例 |
-| ---- | ---- | ---- | ---- |
-| input_dir | string | 入力ファイルのディレクトリパス | "data/input" |
-| output_dir | string | 出力ファイルのディレクトリパス | "data/output" |
-| retry_policy.enabled | boolean | リトライ機能を有効にするかどうか | true |
-| retry_policy.max_retries | int | 最大リトライ回数 | 3 |
-| retry_policy.interval | int | リトライ間隔（秒） | 5 |
+主要キー:
+
+| キー名 | データ型 | 説明 |
+| ---- | ---- | ---- |
+| mfAccount | string | Money Forward 側の対象口座名 |
+| excludePrefixes | string[] | 取引番号プレフィックス一致で除外 |
+| mappingRules | object[] | 取引先キーワードによるカテゴリ割り当て |
+| categoryMap | object | 中カテゴリ名 -> 大カテゴリ名の対応 |
+| duplicateDetection.backend | string | `local` または `gcloud` |
+| duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
+| duplicateDetection.localStorePath | string | local backend の履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
+| gcloudCredentialsPath | string | GCloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
+| advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
+
+#### パス解決について
+
+`duplicateDetection.localStorePath` と `gcloudCredentialsPath` に相対パスを
+指定した場合、その解決基準は config.json のあるディレクトリです。
+例えば、config.json が `/workspace/config.json` の場合：
+
+- `logs/processed.json` → `/workspace/logs/processed.json`
+- `./secrets/paypay2mf-credentials.json` → `/workspace/secrets/paypay2mf-credentials.json`
+- `/tmp/processed.json` （絶対パス） → `/tmp/processed.json` （そのまま使用）
 
 ```json
 {
-  "input_dir": "data/input",
-  "output_dir": "data/output",
-  "retry_policy": {
-    "enabled": true,
-    "max_retries": 3,
-    "interval": 5
-  }
+    "mfAccount": "PayPay",
+    "excludePrefixes": ["PPCD_A_"],
+    "mappingRules": [
+        {
+            "keyword": "Seven",
+            "category": "Food",
+            "matchMode": "contains",
+            "direction": "expense",
+            "priority": 100
+        }
+    ],
+    "categoryMap": {
+        "Food": "Living"
+    },
+    "duplicateDetection": {
+        "backend": "local",
+        "databaseId": "(default)",
+        "localStorePath": "logs/processed.json"
+    },
+    "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
+    "advanced": {
+        "screenshotOnError": true
+    }
 }
 ```
 
-### ファイル（CSV用テンプレート）
+### ファイル（CSV）
 
 | 項目 | 内容 |
 | ---- | ---- |
-| ファイル名 | `input_data.csv` |
 | 形式 | CSV |
-| エンコーディング | UTF-8(BOM付き可) |
-| ヘッダー | あり  |
-| 区切り文字    | `,` |
-| 内容概要 | 入力ファイル |
+| エンコーディング | UTF-8 / UTF-8 BOM |
+| ヘッダー | 必須 |
 
-| 列名 | データ型 | 説明 |
-| ---- | ---- | ---- |
-| id | int | ユーザーID |
-| name | str | ユーザー名 |
-| email | str | メールアドレス |
-| created_at | datetime | 作成日時 |
+主要列（PayPay CSV）:
 
-```csv
-id,name,email,created_at
-1,Alice,alice@example.com,2025-06-01T12:00:00
-2,Bob,bob@example.com,2025-06-02T08:30:00
-```
+| 列名 | 説明 |
+| ---- | ---- |
+| 取引日 | 日時（yyyy/MM/dd HH:mm:ss） |
+| 取引先 | メモ生成とルール判定に使用 |
+| 出金金額（円） | 支出金額 |
+| 入金金額（円） | 収入金額 |
+| 取引内容 | 取引内容テキスト |
+| 取引番号 | 除外判定に使用 |
+| 取引方法 | 重複指紋の入力要素 |
+| 支払い区分 | 重複指紋の入力要素 |
+| 利用者 | 重複指紋の入力要素 |
+| 海外出金金額 | メモ補足情報 |
+| 通貨 | メモ補足情報 |
 
 ## 出力
 
-### ログファイル
+### 標準出力
 
-* 「ログ出力」の章に記載する。
+通常実行時は、登録結果サマリーを標準出力へ表示する。
 
-### ファイル（PDF用テンプレート）
+- 成功: 登録成功件数
+- 失敗: 登録失敗件数
+- スキップ: 除外などでスキップされた件数
+- 除外: プレフィックス除外件数
+- 重複: 重複検知でスキップした件数
+- 解析失敗: CSV 解析失敗件数
 
-| 項目 | 内容 |
+dry-run 時は、以下の集計のみを表示する。
+
+- 合計
+- 解析失敗
+- 除外
+- 重複
+- 対象
+
+### 生成ファイル
+
+| パス | 説明 |
 | ---- | ---- |
-| ファイル名 | `output_data.pdf` |
-| 形式 | PDF |
-| 内容概要 | 出力ファイル |
+| .paypay2mf-profile/ | Playwright persistent profile（ログインセッション保持） |
+| artifacts/ | 登録失敗時のスクリーンショット保存先 |
+| logs/processed.json | local backend の重複履歴（`row_fingerprints` 配列） |
 
 ## 実行方法
 
+### セットアップ
+
 ```bash
-python main.py
+npm install
+npx playwright install
+```
+
+### 初回ログイン（重要）
+
+1. 初回は --headless を付けずに実行する。
+2. ブラウザーが .paypay2mf-profile を使って起動する。
+3. 表示されたブラウザーで Money Forward に手動ログインする。
+4. 家計簿画面が表示されたら、ターミナルで Enter を押す。
+5. 2 回目以降は保存済みプロファイルを再利用し、ログインをスキップする。
+
+補足：初回を --headless で実行すると手動ログインできないためエラー終了する。
+
+### コマンド例
+
+```bash
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv"
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --dry-run
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --headless
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --config="C:\\path\\config.json"
+npm run smoke:dry-run
 ```
 
 ## 想定実行環境
 
 | 項目 | 内容 |
 | ---- | ---- |
-| CPU | Intel 第10世代 Core i5 以上相当 |
-| メモリー | 8 GB 以上 |
 | OS | Windows 10 / Windows 11 |
-| Python | 3.x 以降 |
-| Pythonライブラリー | pandas==1.5.3 <br/> requests==2.31.0 |
+| Node.js | 18 以上 |
+| ブラウザー | Microsoft Edge（stable、最新版推奨） |
+| ライブラリー | playwright 1.55.0 以上、@google-cloud/firestore 8.5.0 以上 |
 
 ## 処理詳細
 
-1. 設定ファイル `settings.json` を読み込む。
-1. 入力ディレクトリに存在するCSVファイルのリストを取得する。
-1. 取得したCSVファイルを1つずつ処理開始。
-1. 各CSVファイルの内容を読み込み、データを検証する。
-1. 処理中にエラーが発生した場合、リトライ設定に基づき再試行する。
-1. 正常に処理が完了したデータをもとにPDFファイルを生成する。
-1. 生成したPDFを指定された出力ディレクトリに保存する。
+1. コマンドライン引数を解析する。
+2. 設定 JSON と UI セレクター設定を読み込む。
+3. CSV を読み込み、行単位で解析して取引データを生成する。
+4. ルールに基づきカテゴリを付与し、プレフィックス除外と重複検知を適用する。
+5. dry-run 指定時は集計のみ出力して終了する（履歴更新なし）。
+6. ブラウザーを起動し、必要に応じてログイン完了を待つ。
+7. 対象取引を 1 件ずつ Money Forward 手入力画面へ登録する。
+8. 登録成功後に重複履歴を更新する。
+9. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
 
 ```mermaid
 flowchart TD
-    A[設定ファイル settings.json を読み込む] --> B[入力ディレクトリのCSVファイル一覧を取得]
-    B --> C[CSVファイルを1つずつ処理開始]
-    C --> D[CSVファイル内容を読み込み]
-    D --> E[データ整合性チェック]
-    E -->|正常| F[PDFファイルを生成]
-    E -->|エラー| G[リトライ設定に基づき再試行]
-    G -->|リトライ成功| F
-    G -->|リトライ失敗| H[エラーログを記録し次のファイルへ]
-    F --> I[PDFを出力ディレクトリに保存]
-    I --> J[ログに処理結果を記録]
-    J --> K{処理するファイルはまだあるか？}
-    K -->|ある| C
-    K -->|なし| L[アプリケーション終了]
+        A[引数解析] --> B[設定ファイル読込]
+        B --> C[CSV読込と解析]
+        C --> D[カテゴリ付与と除外処理]
+        D --> E{dry-run?}
+        E -->|Yes| F[集計を表示して終了]
+        E -->|No| G[Edge起動とログイン確認]
+        G --> H[取引を1件ずつ登録]
+        H --> I[成功/失敗件数を集計]
+        I --> J[サマリー出力して終了]
 ```
 
 ## ログ出力
@@ -133,82 +213,77 @@ flowchart TD
 
 | 項目 | 内容 |
 | ---- | ---- |
-| 出力先 | logs/app_yyyyMMdd.log |
-| ログレベル | INFO / ERROR |
-| フォーマット | `yyyy-MM-dd HH:mm:ss [LEVEL] message` |
+| 出力先 | 標準出力 / 標準エラー |
+| 形式 | プレーンテキスト |
+| ログファイル | なし（アプリケーションでファイルローテーションは行わない） |
 
-### ログ出力例
+### 主な出力メッセージ例
 
 ```text
-2025-06-07 14:23:01 [INFO] アプリケーションを開始しました
-2025-06-07 14:23:01 [INFO] 設定ファイルを読み込みました: settings.json
-2025-06-07 14:23:01 [INFO] 入力ディレクトリ: data/input
-2025-06-07 14:23:01 [INFO] 出力ディレクトリ: data/output
-2025-06-07 14:23:01 [INFO] リトライ設定: 有効（最大3回、5秒間隔）
-2025-06-07 14:23:02 [INFO] ファイルの処理を開始: input_001.csv
-2025-06-07 14:23:03 [ERROR] 処理中にエラーが発生しました: 接続タイムアウト
-2025-06-07 14:23:03 [INFO] リトライ 1回目（5秒後に再試行）
-2025-06-07 14:23:08 [INFO] リトライ成功: input_001.csv を再処理中
-2025-06-07 14:23:09 [INFO] 処理完了: input_001.csv（出力: output_001.csv）
-2025-06-07 14:23:10 [INFO] 全ファイルの処理が完了しました
-2025-06-07 14:23:10 [INFO] アプリケーションを終了します
+ドライランモード
+合計=120
+解析失敗=2
+除外=15
+重複=7
+対象=96
+
+成功=100
+失敗=3
+スキップ=24
+除外=15
+重複=9
+解析失敗=2
+
+[登録失敗] 行=23 取引先=Example Store エラー=Money Forwardの口座選択に指定口座が見つかりません: PayPay
+[成果物] スクリーンショット=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
 ```
-
-### ログメッセージ
-
-| No. | レベル | テンプレート |
-| ---- | ---- | ---- |
-| 1 | INFO | アプリケーションを開始しました |
-| 2 | INFO | 設定ファイルを読み込みました: `{file_name}` |
-| 3 | INFO | 入力ディレクトリ: `{input_dir}` |
-| 4 | INFO | 出力ディレクトリ: `{output_dir}` |
-| 5 | INFO | リトライ設定: `{enabled_display}（最大{max_retries}回、{interval}秒間隔）` |
-| 6 | INFO | ファイルの処理を開始: `{file_name}` |
-| 7 | ERROR | 処理中にエラーが発生しました: `{error_message}` |
-| 8 | INFO | リトライ `{retry_count}`回目（{interval}秒後に再試行） |
-| 9 | INFO | リトライ成功: `{file_name}` を再処理中 |
-| 10 | INFO | 処理完了: `{input_file}`（出力: `{output_file}`） |
-| 11 | INFO | 全ファイルの処理が完了しました |
-| 12 | INFO | アプリケーションを終了します |
 
 ## ライセンス
 
 ### 本プログラムのライセンス
 
-* このプログラムはMITライセンスに基づいて提供されます。
+MIT License
 
 ### 使用ライブラリーのライセンス
 
-| ライブラリ名 | バージョン | ライセンス |
+| ライブラリー名 | バージョン | ライセンス |
 | ---- | ---- | ---- |
-| pandas | 1.5.3 | BSD 3-Clause |
-| requests | 2.31.0 | Apache License 2.0 |
-| fpdf | 1.7.2 | LGPLv3 |
+| playwright | 1.55.0 以上 | Apache-2.0 |
+| @google-cloud/firestore | 8.5.0 以上 | Apache-2.0 |
 
 ## 開発詳細
 
 ### 開発環境
 
-* VSCode バージョン 1.100.3
-* Python 3.11.4
-
-### 検証環境
-
 | 項目 | 内容 |
 | ---- | ---- |
-| CPU | Intel64 Family 6 Model 154 Stepping 3 |
-| メモリー | 16 GB |
-| OS | Windows 11 |
-| Python | 3.11.4 |
-| Pythonライブラリー | pandas==1.5.3 <br/> requests==2.31.0 |
+| OS | Microsoft Windows 11 Home 10.0.26200 |
+| ランタイム | Node.js v24.12.0 |
+| 自動化基盤 | Playwright 1.59.1 |
+| 対象ブラウザー | Microsoft Edge 147.0.3912.98 |
+| エディター | Visual Studio Code 1.118.1 |
+
+### プロジェクト構成（主要ファイル）
+
+| ファイル | 説明 |
+| ---- | ---- |
+| src/import-paypay-to-mfme.js | CLI エントリポイント（起動・画面操作・実行制御） |
+| src/import-core.js | CSV解析・変換・フィルタなどの純粋ロジック |
+| src/duplicate-detector.js | 重複検知（local / gcloud backend） |
+| src/mfme.config.json | Money Forward UI セレクター・タイムアウト設定 |
+| config_sample.json | ユーザー設定サンプル |
+
+### 検証コマンド
+
+```bash
+npm test
+npm run compare:fingerprint:python
+npm run test:gcloud:e2e
+npm run smoke:dry-run
+```
 
 ## 改訂履歴
 
-* テンプレートの改訂履歴を示しています。このテンプレートを使用する際は、ツールの改訂履歴に置き換えてください。
-
 | バージョン | 日付 | 内容 |
 | ----- | ---------- | -------------- |
-| 1.1.2 | 2025-11-03 | ファイル（JSON用テンプレート）内の誤字の修正。 |
-| 1.1.1 | 2025-06-08 | 内容を改訂。<ul><li>概要に「背景・目的」と「機能一覧」を追加。</li><li>ライセンス情報に使用ライブラリとそのライセンスを明記。</li><li>「開発詳細」セクションを新設（開発環境と検証環境を分離）。</li><li>全体の見出し構成を調整し、情報の分類を明確化。</li><li>Markdown表記とコードブロックの体裁を微修正</li></ul>|
-| 1.1.0 | 2025-06-07 | 内容を大幅改訂。<ul><li>想定実行環境・検証環境を表形式に変更し、項目ごとに明確化（CPU・メモリー・OSなど）。</li><li>ログ出力の章を細分化。</li><li>ログの出力ファイル名形式を動的に変更（例：app_yyyyMMdd.log）。</li><li>ログメッセージを一覧化し、連番とプレースホルダー付きでテンプレート化。</li><li>CPU情報の表現を「推奨スペック」形式へ変更。</li><li>細かな体裁調整や見出し・区切り強化（見出し構造、表のラベル整備など）。</li></ul> |
-| 1.0.0 | 2025-04-06 | 初版リリース |
+| 1.0.0 | 2026-05-06 | 初版作成 |
