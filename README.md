@@ -156,10 +156,11 @@ npx playwright install
 ### コマンド例
 
 ```bash
-npm run import:paypay -- --csv="C:\\path\\paypay.csv"
-npm run import:paypay -- --csv="C:\\path\\paypay.csv" --dry-run
-npm run import:paypay -- --csv="C:\\path\\paypay.csv" --headless
-npm run import:paypay -- --csv="C:\\path\\paypay.csv" --config="C:\\path\\config.json"
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv"
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --dry-run
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --headless
+node src/import-paypay-to-mfme.js --csv="C:\\path\\paypay.csv" --config="C:\\path\\config.json"
+npm run smoke:dry-run
 ```
 
 ## 想定実行環境
@@ -176,11 +177,12 @@ npm run import:paypay -- --csv="C:\\path\\paypay.csv" --config="C:\\path\\config
 1. コマンドライン引数を解析する。
 2. 設定 JSON と UI セレクター設定を読み込む。
 3. CSV を読み込み、行単位で解析して取引データを生成する。
-4. ルールに基づきカテゴリを付与し、プレフィックス除外を適用する。
-5. dry-run 指定時は集計のみ出力して終了する。
+4. ルールに基づきカテゴリを付与し、プレフィックス除外と重複検知を適用する。
+5. dry-run 指定時は集計のみ出力して終了する（履歴更新なし）。
 6. ブラウザーを起動し、必要に応じてログイン完了を待つ。
 7. 対象取引を 1 件ずつ Money Forward 手入力画面へ登録する。
-8. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
+8. 登録成功後に重複履歴を更新する。
+9. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
 
 ```mermaid
 flowchart TD
@@ -255,8 +257,18 @@ MIT License。
 | ファイル | 説明 |
 | ---- | ---- |
 | src/import-paypay-to-mfme.js | エントリポイントおよび処理本体 |
+| src/duplicate-detector.js | 重複検知（local / gcloud backend） |
 | src/mfme.config.json | Money Forward UI セレクター・タイムアウト設定 |
 | config_sample.json | ユーザー設定サンプル |
+
+### 検証コマンド
+
+```bash
+npm test
+npm run compare:fingerprint:python
+npm run test:gcloud:e2e
+npm run smoke:dry-run
+```
 
 ## 改訂履歴
 
