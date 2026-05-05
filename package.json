@@ -1,0 +1,15 @@
+﻿{
+  "name": "paypay2mfjs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automates importing PayPay CSV transactions into Money Forward ME with a local Windows tool.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "import:paypay": "node src/import-paypay-to-mfme.js"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

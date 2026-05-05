@@ -1,0 +1,38 @@
+﻿{
+  "profileDir": ".paypay2mf-profile",
+  "artifactsDir": "artifacts",
+  "urls": {
+    "signIn": "https://moneyforward.com/sign_in",
+    "manualForm": "https://moneyforward.com/cf"
+  },
+  "timeoutsMs": {
+    "navigation": 30000,
+    "action": 10000,
+    "submit": 15000
+  },
+  "selectors": {
+    "openManualFormButton": "button.modal-switch[href='#user_asset_act_new']",
+    "manualFormModal": "#user_asset_act_new",
+    "plusPaymentInput": "input.plus-payment",
+    "minusPaymentInput": "input.minus-payment",
+    "dateInput": "#updated-at",
+    "amountInput": "#appendedPrependedInput",
+    "accountSelect": "#user_asset_act_sub_account_id_hash",
+    "memoInput": "#js-content-field",
+    "submitButton": "#submit-button",
+    "submitSuccess": "#alert-area",
+    "categoryDropdown": ".btn_l_ctg .v_l_ctg",
+    "largeCategoryLink": "a.l_c_name",
+    "middleCategoryLink": "a.m_c_name",
+    "loginForm": "form[action*='sign_in'], input[type='email'], input[type='password']"
+  },
+  "submitErrorSelectors": [
+    ".flash_alert",
+    ".alert-danger",
+    ".alert-error",
+    ".errorExplanation",
+    ".error-message",
+    ".mf-input-error",
+    ".formError"
+  ]
+}

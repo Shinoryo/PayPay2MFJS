@@ -1,0 +1,496 @@
+﻿const fs = require('node:fs');
+const path = require('node:path');
+const readline = require('node:readline/promises');
+const { stdin, stdout } = require('node:process');
+const { chromium } = require('playwright');
+
+const DIRECTION_IN = 'in';
+const DIRECTION_OUT = 'out';
+const DEFAULT_CATEGORY = 'Uncategorized';
+const UTF8_BOM = '\uFEFF';
+
+function parseArgs(argv) {
+  const args = {
+    csv: undefined,
+    config: 'config.json',
+    headless: false,
+    dryRun: false,
+    keepOpen: false
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const current = argv[index];
+    if (current === '--headless') {
+      args.headless = true;
+      continue;
+    }
+    if (current === '--dry-run') {
+      args.dryRun = true;
+      continue;
+    }
+    if (current === '--keep-open') {
+      args.keepOpen = true;
+      continue;
+    }
+
+    const csvEq = current.match(/^--csv=(.+)$/);
+    if (csvEq) {
+      args.csv = csvEq[1];
+      continue;
+    }
+    if (current === '--csv') {
+      args.csv = argv[index + 1];
+      index += 1;
+      continue;
+    }
+
+    const configEq = current.match(/^--config=(.+)$/);
+    if (configEq) {
+      args.config = configEq[1];
+      continue;
+    }
+    if (current === '--config') {
+      args.config = argv[index + 1];
+      index += 1;
+      continue;
+    }
+  }
+
+  return args;
+}
+
+function loadJsonIfExists(filePath, fallback) {
+  const resolved = path.resolve(filePath);
+  if (!fs.existsSync(resolved)) {
+    return fallback;
+  }
+  return parseJsonWithBomSupport(fs.readFileSync(resolved, 'utf8'));
+}
+
+function parseJsonWithBomSupport(text) {
+  const normalized = text.startsWith(UTF8_BOM) ? text.slice(1) : text;
+  return JSON.parse(normalized);
+}
+
+function normalizeConfig(userConfig) {
+  return {
+    mfAccount: userConfig.mfAccount || 'PayPay',
+    excludePrefixes: Array.isArray(userConfig.excludePrefixes) ? userConfig.excludePrefixes : ['PPCD_A_'],
+    mappingRules: Array.isArray(userConfig.mappingRules) ? userConfig.mappingRules : [],
+    categoryMap: userConfig.categoryMap && typeof userConfig.categoryMap === 'object' ? userConfig.categoryMap : {},
+    advanced: {
+      screenshotOnError: Boolean(userConfig.advanced && userConfig.advanced.screenshotOnError)
+    }
+  };
+}
+
+function loadRuntimeConfig(configPath) {
+  const userConfig = normalizeConfig(loadJsonIfExists(configPath, {}));
+  const mfmeConfig = parseJsonWithBomSupport(
+    fs.readFileSync(path.resolve(__dirname, 'mfme.config.json'), 'utf8')
+  );
+  return { userConfig, mfmeConfig };
+}
+
+function parseCsvLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  result.push(current);
+  return result;
+}
+
+function normalizeAmount(value) {
+  if (value == null) {
+    return 0;
+  }
+  const raw = String(value).trim();
+  if (!raw || raw === '-' || raw === 'ー') {
+    return 0;
+  }
+  const compact = raw.split(',').join('').split('，').join('');
+  return Number(compact);
+}
+
+function formatDateForForm(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
+
+function parseDate(raw) {
+  const match = String(raw).trim().match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) {
+    throw new Error(`invalid date format: ${raw}`);
+  }
+
+  const [, year, month, day, hour, minute, second] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+}
+
+function resolveDirection(outAmount, inAmount) {
+  if (outAmount > 0 && inAmount > 0) {
+    throw new Error('both out and in amounts are positive');
+  }
+  if (outAmount === 0 && inAmount === 0) {
+    throw new Error('both out and in amounts are zero');
+  }
+  if (outAmount > 0) {
+    return { amount: outAmount, direction: DIRECTION_OUT };
+  }
+  return { amount: inAmount, direction: DIRECTION_IN };
+}
+
+function isRuleMatch(tx, rule) {
+  const mode = rule.matchMode || 'contains';
+  const direction = rule.direction || 'any';
+
+  if (direction === 'income' && tx.direction !== DIRECTION_IN) {
+    return false;
+  }
+  if (direction === 'expense' && tx.direction !== DIRECTION_OUT) {
+    return false;
+  }
+
+  const keyword = String(rule.keyword || '');
+  if (!keyword) {
+    return false;
+  }
+
+  if (mode === 'starts_with') {
+    return tx.merchant.startsWith(keyword);
+  }
+  if (mode === 'regex') {
+    return new RegExp(keyword).test(tx.merchant);
+  }
+  return tx.merchant.includes(keyword);
+}
+
+function applyMapping(transactions, mappingRules) {
+  const prepared = [...mappingRules].sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+  return transactions.map((tx) => {
+    const matched = prepared.find((rule) => isRuleMatch(tx, rule));
+    return {
+      ...tx,
+      category: matched ? String(matched.category || DEFAULT_CATEGORY) : DEFAULT_CATEGORY
+    };
+  });
+}
+
+function applyExclude(transactions, prefixes) {
+  const passed = [];
+  const excluded = [];
+
+  for (const tx of transactions) {
+    const tid = tx.transactionId || '';
+    if (prefixes.some((prefix) => tid.startsWith(prefix))) {
+      excluded.push(tx);
+    } else {
+      passed.push(tx);
+    }
+  }
+
+  return { passed, excluded };
+}
+
+function loadCsv(csvPath) {
+  const rawText = fs.readFileSync(path.resolve(csvPath), 'utf8');
+  const text = rawText.startsWith(UTF8_BOM) ? rawText.slice(1) : rawText;
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (lines.length < 2) {
+    return { transactions: [], parseFailures: [] };
+  }
+
+  const headers = parseCsvLine(lines[0]);
+  const parseFailures = [];
+  const transactions = [];
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const rowNumber = index + 1;
+    try {
+      const cells = parseCsvLine(lines[index]);
+      const row = {};
+      headers.forEach((header, col) => {
+        row[header] = cells[col] ?? '';
+      });
+
+      const outAmount = normalizeAmount(row['出金金額（円）']);
+      const inAmount = normalizeAmount(row['入金金額（円）']);
+      const { amount, direction } = resolveDirection(outAmount, inAmount);
+      const merchant = String(row['取引先'] || '').trim();
+      if (!merchant) {
+        throw new Error('merchant is required');
+      }
+
+      const foreign = String(row['海外出金金額'] || '-').trim();
+      const currency = String(row['通貨'] || '-').trim();
+      let memo = merchant;
+      if (foreign !== '-' && foreign.length > 0) {
+        memo = `${merchant} (foreign: ${foreign} ${currency})`;
+      }
+
+      transactions.push({
+        rowIndex: index,
+        date: parseDate(row['取引日']),
+        amount,
+        direction,
+        memo,
+        merchant,
+        content: String(row['取引内容'] || '').trim(),
+        category: DEFAULT_CATEGORY,
+        transactionId: String(row['取引番号'] || '').trim() || null
+      });
+    } catch (error) {
+      parseFailures.push({
+        rowNumber,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  return { transactions, parseFailures };
+}
+
+async function launchBrowser(headless, mfmeConfig) {
+  const context = await chromium.launchPersistentContext(path.resolve(mfmeConfig.profileDir), {
+    channel: 'msedge',
+    headless,
+    viewport: { width: 1440, height: 960 }
+  });
+
+  context.setDefaultTimeout(mfmeConfig.timeoutsMs.action);
+  context.setDefaultNavigationTimeout(mfmeConfig.timeoutsMs.navigation);
+  const page = context.pages()[0] || (await context.newPage());
+  return { context, page };
+}
+
+async function askForEnter(prompt) {
+  const rl = readline.createInterface({ input: stdin, output: stdout });
+  try {
+    await rl.question(prompt);
+  } finally {
+    rl.close();
+  }
+}
+
+async function ensureLoggedIn(page, options, mfmeConfig) {
+  await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
+
+  const atSignIn = page.url().includes('/sign_in')
+    || (await page.locator(mfmeConfig.selectors.loginForm).first().isVisible().catch(() => false));
+
+  if (!atSignIn) {
+    return;
+  }
+
+  if (options.headless) {
+    throw new Error('headless mode cannot complete first login. Run once without --headless.');
+  }
+
+  console.log('Login required. Complete login in the browser, open Money Forward home/cf page, then press Enter.');
+  await askForEnter('Press Enter after login: ');
+
+  await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
+  if (page.url().includes('/sign_in')) {
+    throw new Error('login was not completed. Still on sign-in page.');
+  }
+}
+
+function normalizeAccountName(text) {
+  return String(text || '').trim().replace(/\s*\([^()]*円\)\s*$/, '');
+}
+
+async function selectAccount(page, selectors, mfAccount) {
+  const options = page.locator(`${selectors.accountSelect} option`);
+  const count = await options.count();
+  let matchedValue = null;
+  const normalized = normalizeAccountName(mfAccount);
+
+  for (let i = 0; i < count; i += 1) {
+    const option = options.nth(i);
+    const optionText = normalizeAccountName(await option.innerText());
+    if (optionText !== normalized) {
+      continue;
+    }
+    matchedValue = await option.getAttribute('value');
+    break;
+  }
+
+  if (!matchedValue) {
+    throw new Error(`account not found in MF dropdown: ${mfAccount}`);
+  }
+
+  await page.selectOption(selectors.accountSelect, matchedValue);
+}
+
+async function selectCategory(page, selectors, categoryMap, middleCategory) {
+  if (!middleCategory || middleCategory === DEFAULT_CATEGORY) {
+    return;
+  }
+
+  const largeCategory = categoryMap[middleCategory];
+  if (!largeCategory) {
+    return;
+  }
+
+  await page.click(selectors.categoryDropdown);
+  await page.locator(selectors.largeCategoryLink, { hasText: largeCategory }).first().hover();
+  await page.locator(selectors.middleCategoryLink, { hasText: middleCategory }).first().click();
+}
+
+async function waitSubmitOutcome(page, mfmeConfig) {
+  const successLocator = page.locator(mfmeConfig.selectors.submitSuccess);
+  try {
+    await successLocator.waitFor({ timeout: mfmeConfig.timeoutsMs.submit, state: 'visible' });
+    const text = (await successLocator.first().innerText()).trim();
+    if (text.includes('入力を保存しました') || text.length > 0) {
+      return;
+    }
+  } catch {
+    // Check explicit errors below.
+  }
+
+  for (const selector of mfmeConfig.submitErrorSelectors) {
+    const errorLocator = page.locator(`${mfmeConfig.selectors.manualFormModal} ${selector}`).first();
+    if (await errorLocator.isVisible().catch(() => false)) {
+      const detail = ((await errorLocator.innerText().catch(() => '')) || 'unknown submit error').trim();
+      throw new Error(detail);
+    }
+  }
+
+  throw new Error('submit result could not be determined');
+}
+
+async function importTransactions(page, transactions, runtimeConfig, options) {
+  const { userConfig, mfmeConfig } = runtimeConfig;
+  const selectors = mfmeConfig.selectors;
+  const summary = { success: 0, failed: 0, skipped: 0 };
+
+  fs.mkdirSync(path.resolve(mfmeConfig.artifactsDir), { recursive: true });
+
+  for (const tx of transactions) {
+    try {
+      await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector(selectors.openManualFormButton, { timeout: mfmeConfig.timeoutsMs.navigation });
+      await page.click(selectors.openManualFormButton);
+      await page.waitForSelector(selectors.manualFormModal, { timeout: mfmeConfig.timeoutsMs.action, state: 'visible' });
+
+      if (tx.direction === DIRECTION_IN) {
+        await page.click(`${selectors.manualFormModal} ${selectors.plusPaymentInput}`);
+      } else {
+        await page.click(`${selectors.manualFormModal} ${selectors.minusPaymentInput}`);
+      }
+
+      await page.fill(selectors.amountInput, String(tx.amount));
+      await selectAccount(page, selectors, userConfig.mfAccount);
+      await selectCategory(page, selectors, userConfig.categoryMap, tx.category);
+      await page.fill(selectors.memoInput, tx.memo);
+      await page.fill(selectors.dateInput, formatDateForForm(tx.date));
+      await page.click(selectors.submitButton);
+
+      await waitSubmitOutcome(page, mfmeConfig);
+      summary.success += 1;
+    } catch (error) {
+      summary.failed += 1;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[record-failed] row=${tx.rowIndex} merchant=${tx.merchant} error=${message}`);
+
+      if (userConfig.advanced.screenshotOnError) {
+        const outPath = path.resolve(
+          mfmeConfig.artifactsDir,
+          `failed-row-${tx.rowIndex}-${Date.now()}.png`
+        );
+        await page.screenshot({ path: outPath, fullPage: true });
+        console.error(`[artifact] screenshot=${outPath}`);
+      }
+    }
+  }
+
+  if (options.keepOpen && !options.headless) {
+    console.log('keep-open enabled. Press Enter to close browser.');
+    await askForEnter('Press Enter to close: ');
+  }
+
+  return summary;
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  if (!args.csv) {
+    console.error('Missing required argument: --csv=<path>');
+    process.exitCode = 1;
+    return;
+  }
+
+  let runtimeConfig;
+  let csvResult;
+
+  try {
+    runtimeConfig = loadRuntimeConfig(args.config);
+    csvResult = loadCsv(args.csv);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+    return;
+  }
+
+  const mapped = applyMapping(csvResult.transactions, runtimeConfig.userConfig.mappingRules);
+  const filtered = applyExclude(mapped, runtimeConfig.userConfig.excludePrefixes);
+
+  if (args.dryRun) {
+    console.log('dry-run mode');
+    console.log(`total=${csvResult.transactions.length}`);
+    console.log(`parse_failures=${csvResult.parseFailures.length}`);
+    console.log(`excluded=${filtered.excluded.length}`);
+    console.log(`target=${filtered.passed.length}`);
+    return;
+  }
+
+  let context;
+  try {
+    const browser = await launchBrowser(args.headless, runtimeConfig.mfmeConfig);
+    context = browser.context;
+    await ensureLoggedIn(browser.page, args, runtimeConfig.mfmeConfig);
+
+    const summary = await importTransactions(browser.page, filtered.passed, runtimeConfig, args);
+    console.log(`success=${summary.success}`);
+    console.log(`failed=${summary.failed}`);
+    console.log(`skipped=${summary.skipped + filtered.excluded.length}`);
+    console.log(`parse_failures=${csvResult.parseFailures.length}`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  } finally {
+    if (context) {
+      await context.close();
+    }
+  }
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});
