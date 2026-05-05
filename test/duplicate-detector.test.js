@@ -281,3 +281,37 @@ test('local detector keeps dirty state after flush failure for retry', async (t)
   assert.throws(() => detector.flush(), DuplicateHistorySaveError);
   assert.equal(detector.dirty, true);
 });
+
+test('buildRowFingerprint produces different hashes when individual fields change', () => {
+  const base = {
+    dateText: '2026/05/01 10:11:12',
+    content: '支払い',
+    merchant: 'セブン-イレブン',
+    outAmount: 1200,
+    inAmount: 0,
+    method: 'PayPay残高',
+    paymentType: '通常',
+    user: '本人'
+  };
+  const baseHash = buildRowFingerprint(base);
+
+  const fields = {
+    dateText: '2026/05/01 10:11:13',
+    content: '別の取引内容',
+    merchant: 'ファミリーマート',
+    outAmount: 999,
+    inAmount: 500,
+    method: '銀行口座',
+    paymentType: '分割',
+    user: '家族'
+  };
+
+  for (const [field, value] of Object.entries(fields)) {
+    const modified = { ...base, [field]: value };
+    assert.notEqual(
+      buildRowFingerprint(modified),
+      baseHash,
+      `field "${field}" change should alter the hash`
+    );
+  }
+});

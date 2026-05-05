@@ -2,6 +2,7 @@
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { buildRowFingerprint } = require('../src/duplicate-detector');
+const { parseCsvLine, normalizeAmount } = require('../src/import-core');
 
 function parseArgs(argv) {
   const args = {
@@ -35,45 +36,6 @@ function parseArgs(argv) {
   }
 
   return args;
-}
-
-function parseCsvLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  result.push(current);
-  return result;
-}
-
-function normalizeAmount(value) {
-  const raw = String(value == null ? '' : value).trim();
-  if (!raw || raw === '-' || raw === 'ー') {
-    return 0;
-  }
-  const compact = raw.split(',').join('').split('，').join('');
-  return Number(compact);
 }
 
 function loadJsFingerprints(csvPath) {

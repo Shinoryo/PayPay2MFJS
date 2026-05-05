@@ -90,6 +90,12 @@ test('normalizeAmount handles commas, full-width commas and blanks', () => {
   assert.equal(normalizeAmount(null), 0);
 });
 
+test('normalizeAmount handles negative numbers and decimals', () => {
+  assert.equal(normalizeAmount('-1200'), -1200);
+  assert.equal(normalizeAmount('1234.56'), 1234.56);
+  assert.equal(normalizeAmount('-1,200'), -1200);
+});
+
 test('parseDate and formatDateForForm handle valid date values', () => {
   const parsed = parseDate('2026/05/01 10:11:12');
   assert.equal(formatDateForForm(parsed), '2026/05/01');
@@ -216,4 +222,11 @@ test('loadCsv reads BOM-prefixed CSV fixture file', () => {
 test('normalizeAccountName strips trailing yen suffix in parentheses', () => {
   assert.equal(normalizeAccountName('PayPay (1,234円)'), 'PayPay');
   assert.equal(normalizeAccountName('PayPay'), 'PayPay');
+});
+
+test('loadCsv throws when CSV file does not exist', () => {
+  assert.throws(
+    () => loadCsv('/nonexistent/path/missing.csv'),
+    (err) => err instanceof Error
+  );
 });

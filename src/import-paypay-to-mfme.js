@@ -139,7 +139,7 @@ async function waitSubmitOutcome(page, mfmeConfig) {
   }
 
   for (const selector of mfmeConfig.submitErrorSelectors) {
-    const errorLocator = page.locator(`${mfmeConfig.selectors.manualFormModal} ${selector}`).first();
+    const errorLocator = page.locator(selector).first();
     if (await errorLocator.isVisible().catch(() => false)) {
       const detail = ((await errorLocator.innerText().catch(() => '')) || '送信時の不明なエラー').trim();
       throw new Error(detail);
@@ -152,7 +152,7 @@ async function waitSubmitOutcome(page, mfmeConfig) {
 async function importTransactions(page, transactions, runtimeConfig, options, detector) {
   const { userConfig, mfmeConfig } = runtimeConfig;
   const selectors = mfmeConfig.selectors;
-  const summary = { success: 0, failed: 0, skipped: 0 };
+  const summary = { success: 0, failed: 0 };
 
   fs.mkdirSync(path.resolve(mfmeConfig.artifactsDir), { recursive: true });
 
@@ -164,9 +164,9 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       await page.waitForSelector(selectors.manualFormModal, { timeout: mfmeConfig.timeoutsMs.action, state: 'visible' });
 
       if (tx.direction === DIRECTION_IN) {
-        await page.click(`${selectors.manualFormModal} ${selectors.plusPaymentInput}`);
+        await page.click(selectors.plusPaymentInModal);
       } else {
-        await page.click(`${selectors.manualFormModal} ${selectors.minusPaymentInput}`);
+        await page.click(selectors.minusPaymentInModal);
       }
 
       await page.fill(selectors.amountInput, String(tx.amount));
@@ -278,7 +278,7 @@ async function main() {
       );
       console.log(`成功=${summary.success}`);
       console.log(`失敗=${summary.failed}`);
-      console.log(`スキップ=${summary.skipped + filtered.excluded.length + deduplicated.duplicates.length}`);
+      console.log(`スキップ=${filtered.excluded.length + deduplicated.duplicates.length}`);
       console.log(`除外=${filtered.excluded.length}`);
       console.log(`重複=${deduplicated.duplicates.length}`);
       console.log(`解析失敗=${csvResult.parseFailures.length}`);

@@ -175,7 +175,13 @@ function isRuleMatch(tx, rule) {
     return tx.merchant.startsWith(keyword);
   }
   if (mode === 'regex') {
-    return new RegExp(keyword).test(tx.merchant);
+    let re;
+    try {
+      re = new RegExp(keyword);
+    } catch {
+      throw new Error(`mappingRules の regex パターンが不正です: "${keyword}"`);
+    }
+    return re.test(tx.merchant);
   }
   return tx.merchant.includes(keyword);
 }

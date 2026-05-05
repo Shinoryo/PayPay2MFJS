@@ -24,15 +24,17 @@
     "categoryDropdown": ".btn_l_ctg .v_l_ctg",
     "largeCategoryLink": "a.l_c_name",
     "middleCategoryLink": "a.m_c_name",
-    "loginForm": "form[action*='sign_in'], input[type='email'], input[type='password']"
+    "loginForm": "form[action*='sign_in'], input[type='email'], input[type='password']",
+    "plusPaymentInModal": "#user_asset_act_new input.plus-payment",
+    "minusPaymentInModal": "#user_asset_act_new input.minus-payment"
   },
   "submitErrorSelectors": [
-    ".flash_alert",
-    ".alert-danger",
-    ".alert-error",
-    ".errorExplanation",
-    ".error-message",
-    ".mf-input-error",
-    ".formError"
+    "#user_asset_act_new .flash_alert",
+    "#user_asset_act_new .alert-danger",
+    "#user_asset_act_new .alert-error",
+    "#user_asset_act_new .errorExplanation",
+    "#user_asset_act_new .error-message",
+    "#user_asset_act_new .mf-input-error",
+    "#user_asset_act_new .formError"
   ]
 }

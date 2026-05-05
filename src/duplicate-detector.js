@@ -168,7 +168,13 @@ class LocalDuplicateDetector {
 
   backupCorruptedStore() {
     const backupPath = buildCorruptedBackupPath(this.storePath);
-    fs.renameSync(this.storePath, backupPath);
+    try {
+      fs.renameSync(this.storePath, backupPath);
+    } catch (renameError) {
+      throw new DuplicateHistoryError(
+        `processed.json のバックアップに失敗しました: ${renameError instanceof Error ? renameError.message : String(renameError)}`
+      );
+    }
     return backupPath;
   }
 
