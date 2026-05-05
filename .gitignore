@@ -6,6 +6,7 @@ logs/
 # Local runtime config/data
 config.json
 paypay_history.csv
+secrets/
 
 # GitHub Copilot
 AGENTS.md
