@@ -247,11 +247,9 @@ MIT License
 
 | 項目 | 内容 |
 | ---- | ---- |
-| 言語 | JavaScript（Node.js） |
-| ランタイム | Node.js 24.12.0 |
-| npm | 11.7.0 |
+| OS | Microsoft Windows 11 Home 10.0.26200 |
+| ランタイム | Node.js v24.12.0 |
 | 自動化基盤 | Playwright 1.59.1 |
-| 主要ライブラリー | @google-cloud/firestore 8.5.0 |
 | 対象ブラウザー | Microsoft Edge 147.0.3912.98 |
 | エディター | Visual Studio Code 1.118.1 |
 
