@@ -122,7 +122,11 @@ function normalizeAmount(value) {
     return 0;
   }
   const compact = raw.split(',').join('').split('，').join('');
-  return Number(compact);
+  const amount = Number(compact);
+  if (!Number.isFinite(amount)) {
+    throw new Error(`金額形式が不正です: ${value}`);
+  }
+  return amount;
 }
 
 function formatDateForForm(date) {
