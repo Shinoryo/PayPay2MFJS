@@ -1,0 +1,29 @@
+﻿{
+  "mfAccount": "PayPay",
+  "excludePrefixes": [
+    "PPCD_A_"
+  ],
+  "mappingRules": [
+    {
+      "keyword": "セブン",
+      "category": "食料品",
+      "matchMode": "contains",
+      "direction": "expense",
+      "priority": 100
+    },
+    {
+      "keyword": "giftee",
+      "category": "その他入金",
+      "matchMode": "contains",
+      "direction": "income",
+      "priority": 100
+    }
+  ],
+  "categoryMap": {
+    "食料品": "生活",
+    "その他入金": "収入"
+  },
+  "advanced": {
+    "screenshotOnError": true
+  }
+}
