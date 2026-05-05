@@ -114,6 +114,20 @@ test('isRuleMatch supports contains starts_with and regex with direction gates',
   assert.equal(isRuleMatch(incomeTx, { keyword: '給与', direction: 'income' }), true);
 });
 
+test('isRuleMatch rejects empty keyword values', () => {
+  const tx = { merchant: 'セブン-イレブン', direction: DIRECTION_OUT };
+
+  assert.equal(isRuleMatch(tx, { keyword: '' }), false);
+  assert.equal(isRuleMatch(tx, { keyword: null }), false);
+  assert.equal(isRuleMatch(tx, { keyword: undefined }), false);
+});
+
+test('isRuleMatch throws when regex pattern is invalid', () => {
+  const tx = { merchant: 'セブン-イレブン', direction: DIRECTION_OUT };
+
+  assert.throws(() => isRuleMatch(tx, { matchMode: 'regex', keyword: '([invalid' }));
+});
+
 test('applyMapping applies highest priority rule and defaults category', () => {
   const mapped = applyMapping(
     [
@@ -128,6 +142,15 @@ test('applyMapping applies highest priority rule and defaults category', () => {
 
   assert.equal(mapped[0].category, '食費');
   assert.equal(mapped[1].category, DEFAULT_CATEGORY);
+});
+
+test('applyMapping propagates regex syntax errors', () => {
+  assert.throws(() =>
+    applyMapping(
+      [{ merchant: 'セブン-イレブン', direction: DIRECTION_OUT }],
+      [{ matchMode: 'regex', keyword: '([invalid', category: '食費' }]
+    )
+  );
 });
 
 test('applyExclude splits passed and excluded by transactionId prefixes', () => {
@@ -178,6 +201,16 @@ test('loadCsv loads valid rows and keeps parse failures per row', () => {
   assert.equal(result.parseFailures.length, 1);
   assert.equal(result.transactions[0].category, DEFAULT_CATEGORY);
   assert.equal(result.transactions[0].memo, 'セブン-イレブン');
+});
+
+test('loadCsv reads BOM-prefixed CSV fixture file', () => {
+  const csvPath = path.resolve(__dirname, '../samples/paypay_sample_bom.csv');
+  const result = loadCsv(csvPath);
+
+  assert.equal(result.parseFailures.length, 0);
+  assert.equal(result.transactions.length, 2);
+  assert.equal(result.transactions[0].merchant, 'Mos Burger');
+  assert.equal(result.transactions[1].merchant, 'giftee');
 });
 
 test('normalizeAccountName strips trailing yen suffix in parentheses', () => {

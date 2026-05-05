@@ -9,7 +9,8 @@ const {
   resolveRowFingerprint,
   buildFirestoreDuplicatePayload,
   createDetector,
-  DuplicateHistoryError
+  DuplicateHistoryError,
+  DuplicateHistorySaveError
 } = require('../src/duplicate-detector');
 
 function createTempDir() {
@@ -202,4 +203,81 @@ test('local detector in dry-run mode does not persist processed.json', async () 
 
   const storePath = path.join(tempDir, 'logs', 'processed.json');
   assert.equal(fs.existsSync(storePath), false);
+});
+
+test('local detector flush throws DuplicateHistorySaveError when rename fails', async (t) => {
+  const tempDir = createTempDir();
+  const detector = await createDetector(
+    {
+      dryRun: false,
+      duplicateDetection: {
+        backend: 'local'
+      }
+    },
+    tempDir
+  );
+
+  const tx = {
+    date: new Date(2026, 4, 1, 10, 11, 12),
+    amount: 1200,
+    direction: 'out',
+    merchant: 'セブン-イレブン',
+    content: '支払い',
+    method: 'PayPay残高',
+    paymentType: '通常',
+    user: '本人',
+    dateText: '2026/05/01 10:11:12',
+    transactionId: 'TXN-ERR'
+  };
+
+  await detector.markProcessed(tx);
+
+  const originalRenameSync = fs.renameSync;
+  t.after(() => {
+    fs.renameSync = originalRenameSync;
+  });
+  fs.renameSync = () => {
+    throw new Error('simulated rename failure');
+  };
+
+  assert.throws(() => detector.flush(), DuplicateHistorySaveError);
+});
+
+test('local detector keeps dirty state after flush failure for retry', async (t) => {
+  const tempDir = createTempDir();
+  const detector = await createDetector(
+    {
+      dryRun: false,
+      duplicateDetection: {
+        backend: 'local'
+      }
+    },
+    tempDir
+  );
+
+  const tx = {
+    date: new Date(2026, 4, 1, 10, 11, 12),
+    amount: 1200,
+    direction: 'out',
+    merchant: 'セブン-イレブン',
+    content: '支払い',
+    method: 'PayPay残高',
+    paymentType: '通常',
+    user: '本人',
+    dateText: '2026/05/01 10:11:12',
+    transactionId: 'TXN-RETRY'
+  };
+
+  await detector.markProcessed(tx);
+
+  const originalRenameSync = fs.renameSync;
+  t.after(() => {
+    fs.renameSync = originalRenameSync;
+  });
+  fs.renameSync = () => {
+    throw new Error('simulated rename failure');
+  };
+
+  assert.throws(() => detector.flush(), DuplicateHistorySaveError);
+  assert.equal(detector.dirty, true);
 });
