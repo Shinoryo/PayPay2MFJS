@@ -131,7 +131,7 @@ async function waitSubmitOutcome(page, mfmeConfig) {
   try {
     await successLocator.waitFor({ timeout: mfmeConfig.timeoutsMs.submit, state: 'visible' });
     const text = (await successLocator.first().innerText()).trim();
-    if (text.includes('入力を保存しました') || text.length > 0) {
+    if (text.includes('入力を保存しました')) {
       return;
     }
   } catch {
