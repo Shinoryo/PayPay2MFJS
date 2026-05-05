@@ -257,7 +257,8 @@ MIT License
 
 | ファイル | 説明 |
 | ---- | ---- |
-| src/import-paypay-to-mfme.js | エントリポイントおよび処理本体 |
+| src/import-paypay-to-mfme.js | CLI エントリポイント（起動・画面操作・実行制御） |
+| src/import-core.js | CSV解析・変換・フィルタなどの純粋ロジック |
 | src/duplicate-detector.js | 重複検知（local / gcloud backend） |
 | src/mfme.config.json | Money Forward UI セレクター・タイムアウト設定 |
 | config_sample.json | ユーザー設定サンプル |

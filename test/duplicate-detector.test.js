@@ -6,6 +6,7 @@ const os = require('node:os');
 
 const {
   buildRowFingerprint,
+  resolveRowFingerprint,
   buildFirestoreDuplicatePayload,
   createDetector,
   DuplicateHistoryError
@@ -118,4 +119,87 @@ test('local detector backs up corrupted processed.json and throws', async () => 
   const files = fs.readdirSync(logsDir);
   assert.equal(files.includes('processed.json'), false);
   assert.equal(files.some((name) => name.startsWith('processed.corrupted_')), true);
+});
+
+test('resolveRowFingerprint prefers provided rowFingerprint over derived value', () => {
+  const tx = {
+    rowFingerprint: 'explicit-fingerprint',
+    date: new Date(2026, 4, 1, 10, 11, 12),
+    dateText: '2026/05/01 10:11:12',
+    amount: 100,
+    direction: 'out',
+    merchant: 'A',
+    content: 'B',
+    method: 'C',
+    paymentType: 'D',
+    user: 'E'
+  };
+
+  assert.equal(resolveRowFingerprint(tx), 'explicit-fingerprint');
+});
+
+test('createDetector with gcloud backend requires gcloudCredentialsPath', async () => {
+  await assert.rejects(
+    createDetector(
+      {
+        dryRun: false,
+        duplicateDetection: {
+          backend: 'gcloud'
+        }
+      },
+      process.cwd()
+    ),
+    DuplicateHistoryError
+  );
+});
+
+test('createDetector falls back to local backend for unknown backend values', async () => {
+  const tempDir = createTempDir();
+  const detector = await createDetector(
+    {
+      dryRun: false,
+      duplicateDetection: {
+        backend: 'unknown_backend'
+      }
+    },
+    tempDir
+  );
+
+  assert.equal(typeof detector.isDuplicate, 'function');
+  assert.equal(typeof detector.markProcessed, 'function');
+  assert.equal(typeof detector.flush, 'function');
+});
+
+test('local detector in dry-run mode does not persist processed.json', async () => {
+  const tempDir = createTempDir();
+  const detector = await createDetector(
+    {
+      dryRun: true,
+      duplicateDetection: {
+        backend: 'local'
+      }
+    },
+    tempDir
+  );
+
+  const tx = {
+    date: new Date(2026, 4, 1, 10, 11, 12),
+    amount: 1200,
+    direction: 'out',
+    merchant: 'セブン-イレブン',
+    content: '支払い',
+    method: 'PayPay残高',
+    paymentType: '通常',
+    user: '本人',
+    dateText: '2026/05/01 10:11:12',
+    transactionId: 'TXN-1'
+  };
+
+  assert.equal(await detector.isDuplicate(tx), false);
+  await detector.markProcessed(tx);
+  assert.equal(await detector.isDuplicate(tx), false);
+  await detector.flush();
+
+  const storePath = path.join(tempDir, 'logs', 'processed.json');
+  assert.equal(fs.existsSync(storePath), false);
 });
