@@ -187,6 +187,35 @@ test('resolveRowFingerprint prefers provided rowFingerprint over derived value',
   assert.equal(resolveRowFingerprint(tx), 'explicit-fingerprint');
 });
 
+test('resolveRowFingerprint keeps using input CSV dateText even if registration date is shifted', () => {
+  const fingerprint = resolveRowFingerprint({
+    rowFingerprint: '',
+    date: new Date(2026, 4, 31, 10, 11, 12),
+    dateText: '2026/05/01 10:11:12',
+    amount: 100,
+    direction: 'in',
+    merchant: 'PayPayキャンペーン',
+    content: 'ポイント、残高の獲得',
+    method: 'PayPayポイント',
+    paymentType: '通常',
+    user: '本人'
+  });
+
+  assert.equal(
+    fingerprint,
+    buildRowFingerprint({
+      dateText: '2026/05/01 10:11:12',
+      content: 'ポイント、残高の獲得',
+      merchant: 'PayPayキャンペーン',
+      outAmount: 0,
+      inAmount: 100,
+      method: 'PayPayポイント',
+      paymentType: '通常',
+      user: '本人'
+    })
+  );
+});
+
 test('createDetector with gcloud backend requires gcloudCredentialsPath', async () => {
   await assert.rejects(
     createDetector(

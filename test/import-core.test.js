@@ -16,6 +16,9 @@ const {
   formatDateForForm,
   parseDate,
   resolveDirection,
+  addDays,
+  shouldDeferIncomeDate,
+  applyIncomeDateAdjustments,
   isRuleMatch,
   applyMapping,
   applyExclude,
@@ -102,6 +105,12 @@ test('parseDate and formatDateForForm handle valid date values', () => {
   assert.throws(() => parseDate('2026-05-01 10:11:12'));
 });
 
+test('addDays shifts dates across month boundaries', () => {
+  const shifted = addDays(new Date(2026, 0, 31, 10, 11, 12), 30);
+
+  assert.equal(formatDateForForm(shifted), '2026/03/02');
+});
+
 test('resolveDirection classifies in/out and rejects invalid pairs', () => {
   assert.deepEqual(resolveDirection(1200, 0), { amount: 1200, direction: DIRECTION_OUT });
   assert.deepEqual(resolveDirection(0, 900), { amount: 900, direction: DIRECTION_IN });
@@ -157,6 +166,51 @@ test('applyMapping propagates regex syntax errors', () => {
       [{ matchMode: 'regex', keyword: '([invalid', category: '食費' }]
     )
   );
+});
+
+test('shouldDeferIncomeDate matches only targeted PayPay point income rows', () => {
+  const baseTx = {
+    direction: DIRECTION_IN,
+    content: 'ポイント、残高の獲得',
+    merchant: 'PayPayキャンペーン',
+    method: 'PayPayポイント'
+  };
+
+  assert.equal(shouldDeferIncomeDate(baseTx), true);
+  assert.equal(shouldDeferIncomeDate({ ...baseTx, merchant: 'ワイモバイル' }), false);
+  assert.equal(shouldDeferIncomeDate({ ...baseTx, merchant: 'Yahoo!ズバトク' }), false);
+  assert.equal(shouldDeferIncomeDate({ ...baseTx, direction: DIRECTION_OUT }), false);
+  assert.equal(shouldDeferIncomeDate({ ...baseTx, content: '支払い' }), false);
+  assert.equal(shouldDeferIncomeDate({ ...baseTx, method: 'PayPay残高' }), false);
+});
+
+test('applyIncomeDateAdjustments shifts only targeted income dates and keeps dateText', () => {
+  const originalDate = new Date(2026, 4, 1, 10, 11, 12);
+  const transactions = [
+    {
+      date: originalDate,
+      dateText: '2026/05/01 10:11:12',
+      direction: DIRECTION_IN,
+      content: 'ポイント、残高の獲得',
+      merchant: 'PayPayキャンペーン',
+      method: 'PayPayポイント'
+    },
+    {
+      date: originalDate,
+      dateText: '2026/05/01 10:11:12',
+      direction: DIRECTION_IN,
+      content: 'ポイント、残高の獲得',
+      merchant: 'ワイモバイル',
+      method: 'PayPayポイント'
+    }
+  ];
+
+  const adjusted = applyIncomeDateAdjustments(transactions);
+
+  assert.equal(formatDateForForm(adjusted[0].date), '2026/05/31');
+  assert.equal(adjusted[0].dateText, '2026/05/01 10:11:12');
+  assert.notEqual(adjusted[0].date, originalDate);
+  assert.equal(adjusted[1].date, originalDate);
 });
 
 test('applyExclude splits passed and excluded by transactionId prefixes', () => {
