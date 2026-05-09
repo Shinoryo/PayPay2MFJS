@@ -21,9 +21,5 @@
   "devDependencies": {
     "markdownlint-cli": "^0.48.0"
   },
-  "overrides": {
-    "node-fetch": "3.3.2",
-    "fetch-blob": "4.0.0"
-  },
   "_comment": "node-domexception@1.0.0 (via @google-cloud/firestore → google-gax → node-fetch) is deprecated but triggers no security vulnerability; upgrade deferred to future @google-cloud/firestore major version. npm WARN deprecated related to this transitive dependency is expected and acceptable for now."
 }
