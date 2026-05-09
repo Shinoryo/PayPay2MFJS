@@ -21,5 +21,5 @@
   "devDependencies": {
     "markdownlint-cli": "^0.48.0"
   },
-  "_comment": "node-domexception@1.0.0 (via @google-cloud/firestore → google-gax → node-fetch) is deprecated but triggers no security vulnerability; upgrade deferred to future @google-cloud/firestore major version. npm WARN deprecated related to this transitive dependency is expected and acceptable for now."
+  "_comment": "Known transitive npm WARN deprecated messages are currently expected from node-domexception@1.0.0 (via @google-cloud/firestore → google-gax → node-fetch) and glob@10.5.0 (via @google-cloud/firestore → google-gax → rimraf → glob). These are dependency-maintainer issues, trigger no known security vulnerability in this project, and upgrades are deferred until upstream dependency updates are available."
 }
