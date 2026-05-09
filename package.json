@@ -9,7 +9,7 @@
   "scripts": {
     "import:paypay": "node src/import-paypay-to-mfme.js",
     "smoke:dry-run": "node src/import-paypay-to-mfme.js --csv=samples/paypay_sample.csv --dry-run",
-    "lint:md": "markdownlint README.md AGENTS.md",
+    "lint:md": "markdownlint README.md",
     "compare:fingerprint:python": "node scripts/compare-fingerprints-with-python.js --csv=samples/paypay_sample.csv",
     "test:gcloud:e2e": "node scripts/gcloud-e2e.js",
     "test": "node --test"
