@@ -195,7 +195,7 @@ npm run smoke:dry-run
 | OS | Windows 10 / Windows 11 |
 | Node.js | 20 以上 |
 | ブラウザー | Microsoft Edge（stable、最新版推奨） |
-| ライブラリー | playwright 1.55.0 以上、@google-cloud/firestore 8.5.0 以上 |
+| ライブラリー | playwright 1.59.1 以上、@google-cloud/firestore 8.5.0 以上 |
 
 ## 処理詳細
 
