@@ -5,6 +5,13 @@ const DIRECTION_IN = 'in';
 const DIRECTION_OUT = 'out';
 const DEFAULT_CATEGORY = 'Uncategorized';
 const UTF8_BOM = '\uFEFF';
+const DEFERRED_INCOME_DAYS = 30;
+const DEFERRED_INCOME_CONTENT = 'ポイント、残高の獲得';
+const DEFERRED_INCOME_METHOD = 'PayPayポイント';
+const DEFERRED_INCOME_EXCLUDED_MERCHANTS = new Set([
+  'ワイモバイル',
+  'Yahoo!ズバトク'
+]);
 
 function parseArgs(argv) {
   const args = {
@@ -157,6 +164,32 @@ function resolveDirection(outAmount, inAmount) {
     return { amount: outAmount, direction: DIRECTION_OUT };
   }
   return { amount: inAmount, direction: DIRECTION_IN };
+}
+
+function addDays(date, days) {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + days);
+  return shifted;
+}
+
+function shouldDeferIncomeDate(tx) {
+  return tx.direction === DIRECTION_IN
+    && tx.content === DEFERRED_INCOME_CONTENT
+    && tx.method === DEFERRED_INCOME_METHOD
+    && !DEFERRED_INCOME_EXCLUDED_MERCHANTS.has(tx.merchant);
+}
+
+function applyIncomeDateAdjustments(transactions) {
+  return transactions.map((tx) => {
+    if (!shouldDeferIncomeDate(tx)) {
+      return tx;
+    }
+
+    return {
+      ...tx,
+      date: addDays(tx.date, DEFERRED_INCOME_DAYS)
+    };
+  });
 }
 
 function isRuleMatch(tx, rule) {
@@ -313,6 +346,9 @@ module.exports = {
   formatDateForForm,
   parseDate,
   resolveDirection,
+  addDays,
+  shouldDeferIncomeDate,
+  applyIncomeDateAdjustments,
   isRuleMatch,
   applyMapping,
   applyExclude,

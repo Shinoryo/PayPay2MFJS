@@ -15,6 +15,7 @@ const {
   parseJsonWithBomSupport,
   normalizeConfig,
   formatDateForForm,
+  applyIncomeDateAdjustments,
   applyMapping,
   applyExclude,
   applyDuplicateDetection,
@@ -239,7 +240,8 @@ async function main() {
     return;
   }
 
-  const mapped = applyMapping(csvResult.transactions, runtimeConfig.userConfig.mappingRules);
+  const adjusted = applyIncomeDateAdjustments(csvResult.transactions);
+  const mapped = applyMapping(adjusted, runtimeConfig.userConfig.mappingRules);
   const filtered = applyExclude(mapped, runtimeConfig.userConfig.excludePrefixes);
   let deduplicated;
 
