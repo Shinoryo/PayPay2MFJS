@@ -193,9 +193,9 @@ npm run smoke:dry-run
 | 項目 | 内容 |
 | ---- | ---- |
 | OS | Windows 10 / Windows 11 |
-| Node.js | 18 以上 |
+| Node.js | 20 以上 |
 | ブラウザー | Microsoft Edge（stable、最新版推奨） |
-| ライブラリー | playwright 1.55.0 以上、@google-cloud/firestore 8.5.0 以上 |
+| ライブラリー | playwright 1.59.1 以上、@google-cloud/firestore 8.5.0 以上 |
 
 ## 処理詳細
 
@@ -279,7 +279,7 @@ MIT License
 | ランタイム | Node.js v24.12.0 |
 | 自動化基盤 | Playwright 1.59.1 |
 | 対象ブラウザー | Microsoft Edge 147.0.3912.98 |
-| エディター | Visual Studio Code 1.118.1 |
+| エディター | Visual Studio Code 1.119.0 |
 
 ### プロジェクト構成（主要ファイル）
 
