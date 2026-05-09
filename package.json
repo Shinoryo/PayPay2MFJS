@@ -19,6 +19,6 @@
     "playwright": "^1.55.0"
   },
   "devDependencies": {
-    "markdownlint-cli": "^0.44.0"
+    "markdownlint-cli": "^0.48.0"
   }
 }
