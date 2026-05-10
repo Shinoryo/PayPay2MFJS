@@ -51,7 +51,7 @@
 | categoryMap | object | 中カテゴリ名 -> 大カテゴリ名の対応 |
 | duplicateDetection.backend | string | `local` または `gcloud` |
 | duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
-| duplicateDetection.localStorePath | string | local backend の履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
+| duplicateDetection.localStorePath | string | local バックエンドの履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
 | gcloudCredentialsPath | string | GCloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
 
@@ -195,7 +195,7 @@ dry-run 時は、以下の集計のみを表示する。
 | ---- | ---- |
 | .paypay2mf-profile/ | Playwright persistent profile（ログインセッション保持） |
 | artifacts/ | 登録失敗時のスクリーンショット保存先 |
-| logs/processed.json | local backend の重複履歴（`row_fingerprints` 配列） |
+| logs/processed.json | local バックエンドの重複履歴（`row_fingerprints` 配列） |
 
 ## 実行方法
 
@@ -327,7 +327,7 @@ MIT License
 | ---- | ---- |
 | src/import-paypay-to-mfme.js | CLI エントリポイント（起動・画面操作・実行制御） |
 | src/import-core.js | CSV解析・変換・フィルタなどの純粋ロジック |
-| src/duplicate-detector.js | 重複検知（local / gcloud backend） |
+| src/duplicate-detector.js | 重複検知（local / gcloud バックエンド） |
 | src/mfme.config.json | Money Forward UI セレクター・タイムアウト設定 |
 | config_sample.json | ユーザー設定サンプル |
 
