@@ -24,6 +24,7 @@
 | TC-TR-01 | 振替ルール正規化 | normalizeConfig | isTransfer と transferAccount を正規化 |
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
+| TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
 | TC-DUP-01 | flush正常系 | LocalDuplicateDetector.flush | processed.json保存成功 |
 | TC-DUP-02 | flush失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError送出 |
 | TC-DUP-03 | flush失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true維持 |
@@ -44,6 +45,8 @@
 | TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象transaction1件 | transferAccountなしの振替rule | Errorがthrowされる |
 | TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替transaction | 振替元・振替先が期待通り |
 | TC-TR-03B | resolveTransferAccounts rejects same-account transfers | mfAccountとtransferAccountが同一 | 振替transaction | Errorがthrowされる |
+| TC-TR-04A | applyMapping prioritizes higher-priority transfer rule over category rule | 同一keywordで複数rule | transferとcategoryでpriority差あり | 高priorityのruleを採用 |
+| TC-TR-04B | applyMapping uses declaration order when priorities are equal | 同一keywordで複数rule | transferとcategoryでpriority同値 | mappingRulesの上側ruleを採用 |
 
 ### 4.2 duplicate-detector
 
@@ -70,7 +73,7 @@
 ## 7. 受け入れ基準
 
 - 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01,
-  TC-TR-02, TC-TR-03, TC-DUP-02, TC-DUP-03）を満たすテストが
+  TC-TR-02, TC-TR-03, TC-TR-04, TC-DUP-02, TC-DUP-03）を満たすテストが
   全て成功する。
 - dry-run の既存挙動（高速・副作用最小）が維持される。
 - 仕様変更なし（invalid regex は例外送出のまま）。

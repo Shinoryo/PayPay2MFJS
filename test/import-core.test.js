@@ -216,6 +216,52 @@ test('applyMapping throws when matched transfer rule is missing transferAccount'
   );
 });
 
+test('applyMapping prefers higher-priority rule on transfer/category conflicts', () => {
+  const mapped = applyMapping(
+    [{ merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }],
+    [
+      {
+        keyword: 'PayPayポイント運用',
+        category: '雑費',
+        priority: 100
+      },
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント',
+        priority: 200
+      }
+    ]
+  );
+
+  assert.equal(mapped[0].isTransfer, true);
+  assert.equal(mapped[0].transferAccount, 'PayPayポイント');
+  assert.equal(mapped[0].category, DEFAULT_CATEGORY);
+});
+
+test('applyMapping uses declaration order when priorities are equal', () => {
+  const mapped = applyMapping(
+    [{ merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }],
+    [
+      {
+        keyword: 'PayPayポイント運用',
+        category: '雑費',
+        priority: 100
+      },
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント',
+        priority: 100
+      }
+    ]
+  );
+
+  assert.equal(mapped[0].isTransfer, false);
+  assert.equal(mapped[0].transferAccount, null);
+  assert.equal(mapped[0].category, '雑費');
+});
+
 test('resolveTransferAccounts maps expense and income around PayPay account', () => {
   assert.deepEqual(
     resolveTransferAccounts(

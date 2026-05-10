@@ -72,6 +72,8 @@
 - `category` を指定したルールは、通常の入出金カテゴリ登録として扱う。
 - `isTransfer=true` のルールは、カテゴリ登録ではなく振替登録として扱う。
 - `category` と `isTransfer=true` は同時指定しない。
+- 同一取引に複数ルールが一致した場合は、`priority` の高い順で評価する。
+- `priority` が同じ場合は、`mappingRules` の記述順（上から）を優先する。
 - `direction=expense` の振替ルールは、PayPay を振替元、`transferAccount` を振替先として登録する。
 - `direction=income` の振替ルールは、`transferAccount` を振替元、PayPay を振替先として登録する。
 - `transferAccount` は Money Forward ME の振替元・振替先候補に表示される口座名と一致させる。
