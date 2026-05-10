@@ -4,7 +4,7 @@
 
 ### 背景・目的
 
-背景：PayPay 利用明細 CSV を Money Forward ME へ手入力する作業に手間がかかる。
+背景：PayPay 利用明細 CSV を Money Forward ME へ手入力する負担が大きい。
 
 目的：CSV の読み取り、仕訳ルール適用、Money Forward ME への登録を自動化し、登録作業の時間を短縮する。
 
