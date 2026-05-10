@@ -84,7 +84,8 @@ function normalizeMappingRule(rule) {
   return {
     ...normalizedRule,
     isTransfer,
-    transferAccount: transferAccount || null
+    transferAccount: transferAccount || null,
+    category
   };
 }
 

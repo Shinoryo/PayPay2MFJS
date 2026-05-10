@@ -91,6 +91,10 @@ test('normalizeMappingRule trims and lowercases isTransfer strings', () => {
   assert.equal(normalizeMappingRule({ isTransfer: ' FALSE ' }).isTransfer, false);
 });
 
+test('normalizeMappingRule trims whitespace from category', () => {
+  assert.equal(normalizeMappingRule({ keyword: 'テスト', category: ' 食費 ' }).category, '食費');
+});
+
 test('normalizeConfig normalizes transfer rules in mappingRules', () => {
   const normalized = normalizeConfig({
     mappingRules: [

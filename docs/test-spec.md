@@ -42,6 +42,7 @@
 | TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer rule を含む設定 | isTransfer=true, transferAccount あり | 正規化後も値を保持する |
 | TC-TR-01B | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
 | TC-TR-01C | normalizeMappingRule trims and lowercases isTransfer strings | ルールに `isTransfer` が文字列で設定されている | `isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、false と扱われる |
+| TC-TR-01D | normalizeMappingRule trims whitespace from category | ルールに前後空白付きの `category` が設定されている | `category: ' 食費 '` | `category` は `trim()` が適用され `'食費'` になる |
 | TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象 transaction が 1 件 | isTransfer=true のルール | isTransfer=true, category=Uncategorized |
 | TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象 transaction が 1 件 | transferAccount なしの振替ルール | 例外を送出する |
 | TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替 transaction | 振替元・振替先が期待どおり |
