@@ -26,7 +26,7 @@
 | ---- | ---- | ---- |
 | `--csv=<path>` | 必須 | PayPay CSV ファイルパス |
 | `--config=<path>` | 任意 | 設定 JSON ファイルパス（既定値: config.json） |
-| --headless | 任意 | Edge をヘッドレスで起動 |
+| --headless | 任意 | Edge をヘッドレスモードで起動する |
 | --dry-run | 任意 | 解析とフィルタのみ実行し、MF へ登録しない |
 | --keep-open | 任意 | 終了時にブラウザーを閉じず Enter を待つ（headed 時のみ） |
 
