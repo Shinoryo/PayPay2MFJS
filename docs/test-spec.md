@@ -43,6 +43,7 @@
 | TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer ruleを含む設定 | isTransfer=true, transferAccountあり | 正規化後も値を保持 |
 | TC-TR-01B | normalizeMappingRule supports transfer aliases and boolean coercion | 旧キーを含むrule | `振替？`=`true`, `振替元・先` あり | `isTransfer` と `transferAccount` に変換 |
 | TC-TR-01C | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
+| TC-TR-01D | normalizeMappingRule trims and lowercases isTransfer strings | ルールに旧キーまたは `isTransfer` が文字列で設定されている | `'振替？': 'true ' / '振替？': ' True' / isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、'true' 系は true、その他は false と扱われる |
 | TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象transaction1件 | isTransfer=true のrule | isTransfer=true, category=Uncategorized |
 | TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象transaction1件 | transferAccountなしの振替rule | Errorがthrowされる |
 | TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替transaction | 振替元・振替先が期待通り |
