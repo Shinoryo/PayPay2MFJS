@@ -92,6 +92,12 @@ test('normalizeMappingRule supports transfer aliases and boolean coercion', () =
   assert.equal(normalized.transferAccount, 'PayPayポイント');
 });
 
+test('normalizeMappingRule throws when isTransfer and category are both specified', () => {
+  assert.throws(() =>
+    normalizeMappingRule({ keyword: 'コンフリクト', isTransfer: true, category: '雑費' })
+  );
+});
+
 test('normalizeMappingRule trims and lowercases isTransfer strings', () => {
   assert.equal(normalizeMappingRule({ '振替？': 'true ' }).isTransfer, true);
   assert.equal(normalizeMappingRule({ '振替？': ' True' }).isTransfer, true);

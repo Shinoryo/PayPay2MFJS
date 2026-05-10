@@ -74,9 +74,16 @@ function normalizeMappingRule(rule) {
   const rawTransferAccount = normalizedRule.transferAccount ?? normalizedRule['振替元・先'];
   const transferAccount = typeof rawTransferAccount === 'string' ? rawTransferAccount.trim() : '';
 
+  const isTransfer = rawIsTransfer === true || String(rawIsTransfer || '').trim().toLowerCase() === 'true';
+  const category = typeof normalizedRule.category === 'string' ? normalizedRule.category.trim() : normalizedRule.category;
+
+  if (isTransfer && category) {
+    throw new Error(`mappingRules のルールで isTransfer=true と category の同時指定は無効です: "${String(normalizedRule.keyword || '')}"`);
+  }
+
   return {
     ...normalizedRule,
-    isTransfer: rawIsTransfer === true || String(rawIsTransfer || '').trim().toLowerCase() === 'true',
+    isTransfer,
     transferAccount: transferAccount || null
   };
 }

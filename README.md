@@ -28,7 +28,7 @@
 | `--config=<path>` | 任意 | 設定 JSON ファイルパス（既定値: config.json） |
 | --headless | 任意 | Edge をヘッドレスで起動 |
 | --dry-run | 任意 | 解析とフィルタのみ実行し、MF へ登録しない |
-| --keep-open | 任意 | 終了時にブラウザーを閉じず Enter 待ちする（headed 時のみ） |
+| --keep-open | 任意 | 終了時にブラウザーを閉じず Enter を待つ（headed 時のみ） |
 
 補足：--csv が未指定の場合は終了コード 1 で終了する。
 

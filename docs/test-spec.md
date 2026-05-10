@@ -22,6 +22,7 @@
 | TC-KW-01 | 空keyword | isRuleMatch | 空文字/null/undefinedはfalse |
 | TC-CSV-01 | BOM付きCSV実体 | loadCsv | BOMを除去して正常に2件読込 |
 | TC-TR-01 | 振替ルール正規化 | normalizeConfig | isTransfer と transferAccount を正規化 |
+| TC-TR-01C | 振替/カテゴリ衝突検出 | normalizeMappingRule / normalizeConfig | `isTransfer=true` と `category` を同時に指定した場合は例外を送出 |
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
@@ -41,6 +42,7 @@
 | TC-CSV-01A | loadCsv reads BOM-prefixed CSV fixture file | samples/paypay_sample_bom.csv が存在 | loadCsv(fixturePath) | parseFailures=0, transactions=2 |
 | TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer ruleを含む設定 | isTransfer=true, transferAccountあり | 正規化後も値を保持 |
 | TC-TR-01B | normalizeMappingRule supports transfer aliases and boolean coercion | 旧キーを含むrule | `振替？`=`true`, `振替元・先` あり | `isTransfer` と `transferAccount` に変換 |
+| TC-TR-01C | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
 | TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象transaction1件 | isTransfer=true のrule | isTransfer=true, category=Uncategorized |
 | TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象transaction1件 | transferAccountなしの振替rule | Errorがthrowされる |
 | TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替transaction | 振替元・振替先が期待通り |
@@ -72,9 +74,12 @@
 
 ## 7. 受け入れ基準
 
-- 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01,
-  TC-TR-02, TC-TR-03, TC-TR-04, TC-DUP-02, TC-DUP-03）を満たすテストが
-  全て成功する。
+- 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01, TC-TR-02,
+   TC-TR-03, TC-TR-04, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
 - dry-run の既存挙動（高速・副作用最小）が維持される。
 - 仕様変更なし（invalid regex は例外送出のまま）。
 - 振替ルールは、同じ `mappingRules` 配列内でカテゴリルールと共存できる。
+- 仕様変更: 個々のルールで `isTransfer=true` と `category` を同時に指定した
+   場合はエラーになります（設定ミスの早期検出のため）。ただし、振替ルールと
+   カテゴリルールは同一の `mappingRules` 配列内で別々のルールとして共存
+   できます。
