@@ -8,7 +8,10 @@
 ## 2. 範囲
 
 - 対象レイヤー: unit test / integration test / smoke test
-- 主対象モジュール: src/import-core.js, src/duplicate-detector.js, src/import-paypay-to-mfme.js（smoke のエントリーポイント確認）
+- 主対象モジュールは次の 3 つ。
+- src/import-core.js
+- src/duplicate-detector.js
+- src/import-paypay-to-mfme.js（smoke のエントリーポイント確認）
 
 ## 3. テスト観点
 
