@@ -77,7 +77,6 @@
 - `direction=expense` の振替ルールは、PayPay を振替元、`transferAccount` を振替先として登録する。
 - `direction=income` の振替ルールは、`transferAccount` を振替元、PayPay を振替先として登録する。
 - `transferAccount` は Money Forward ME の振替元・振替先候補に表示される口座名と一致させる。
-- 互換用の旧キーとして `振替？` と `振替元・先` も読み取るが、新規設定では `isTransfer` と `transferAccount` を推奨する。
 
 補足:
 
