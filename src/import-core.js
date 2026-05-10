@@ -70,8 +70,8 @@ function parseJsonWithBomSupport(text) {
 
 function normalizeMappingRule(rule) {
   const normalizedRule = rule && typeof rule === 'object' ? rule : {};
-  const rawIsTransfer = normalizedRule.isTransfer ?? normalizedRule['振替？'];
-  const rawTransferAccount = normalizedRule.transferAccount ?? normalizedRule['振替元・先'];
+  const rawIsTransfer = normalizedRule.isTransfer;
+  const rawTransferAccount = normalizedRule.transferAccount;
   const transferAccount = typeof rawTransferAccount === 'string' ? rawTransferAccount.trim() : '';
 
   const isTransfer = rawIsTransfer === true || String(rawIsTransfer || '').trim().toLowerCase() === 'true';
