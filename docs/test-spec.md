@@ -17,18 +17,18 @@
 
 | 観点ID | 観点 | 対象関数 | 期待挙動 |
 | ---- | ---- | ---- | ---- |
-| TC-REGEX-01 | regex正常系 | isRuleMatch | 有効regexでtrue/false判定 |
-| TC-REGEX-02 | regex不正系 | isRuleMatch / applyMapping | 不正regexは例外を送出（現状仕様） |
-| TC-KW-01 | 空keyword | isRuleMatch | 空文字/null/undefinedはfalse |
-| TC-CSV-01 | BOM付きCSV実体 | loadCsv | BOMを除去して正常に2件読込 |
+| TC-REGEX-01 | regex 正常系 | isRuleMatch | 有効な regex で true/false を判定 |
+| TC-REGEX-02 | regex 不正系 | isRuleMatch / applyMapping | 不正な regex は例外を送出（現状仕様） |
+| TC-KW-01 | 空の keyword | isRuleMatch | 空文字/null/undefined は false |
+| TC-CSV-01 | BOM 付き CSV | loadCsv | BOM を除去して正常に 2 件読み込む |
 | TC-TR-01 | 振替ルール正規化 | normalizeConfig | isTransfer と transferAccount を正規化 |
 | TC-TR-01C | 振替/カテゴリ衝突検出 | normalizeMappingRule / normalizeConfig | `isTransfer=true` と `category` を同時に指定した場合は例外を送出 |
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
-| TC-DUP-01 | flush正常系 | LocalDuplicateDetector.flush | processed.json保存成功 |
-| TC-DUP-02 | flush失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError送出 |
-| TC-DUP-03 | flush失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true維持 |
+| TC-DUP-01 | flush 正常系 | LocalDuplicateDetector.flush | processed.json の保存に成功する |
+| TC-DUP-02 | flush 失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError を送出する |
+| TC-DUP-03 | flush 失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true を維持する |
 
 ## 4. ケース一覧
 
