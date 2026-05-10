@@ -68,6 +68,19 @@ function parseJsonWithBomSupport(text) {
   return JSON.parse(normalized);
 }
 
+function normalizeMappingRule(rule) {
+  const normalizedRule = rule && typeof rule === 'object' ? rule : {};
+  const rawIsTransfer = normalizedRule.isTransfer ?? normalizedRule['振替？'];
+  const rawTransferAccount = normalizedRule.transferAccount ?? normalizedRule['振替元・先'];
+  const transferAccount = typeof rawTransferAccount === 'string' ? rawTransferAccount.trim() : '';
+
+  return {
+    ...normalizedRule,
+    isTransfer: rawIsTransfer === true || String(rawIsTransfer || '').toLowerCase() === 'true',
+    transferAccount: transferAccount || null
+  };
+}
+
 function normalizeConfig(userConfig) {
   const duplicateDetection = userConfig.duplicateDetection && typeof userConfig.duplicateDetection === 'object'
     ? userConfig.duplicateDetection
@@ -76,7 +89,9 @@ function normalizeConfig(userConfig) {
   return {
     mfAccount: userConfig.mfAccount || 'PayPay',
     excludePrefixes: Array.isArray(userConfig.excludePrefixes) ? userConfig.excludePrefixes : ['PPCD_A_'],
-    mappingRules: Array.isArray(userConfig.mappingRules) ? userConfig.mappingRules : [],
+    mappingRules: Array.isArray(userConfig.mappingRules)
+      ? userConfig.mappingRules.map((rule) => normalizeMappingRule(rule))
+      : [],
     categoryMap: userConfig.categoryMap && typeof userConfig.categoryMap === 'object' ? userConfig.categoryMap : {},
     duplicateDetection: {
       backend: duplicateDetection.backend || 'local',
@@ -224,14 +239,47 @@ function isRuleMatch(tx, rule) {
 }
 
 function applyMapping(transactions, mappingRules) {
-  const prepared = [...mappingRules].sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+  const prepared = mappingRules
+    .map((rule) => normalizeMappingRule(rule))
+    .sort((a, b) => Number(b.priority || 0) - Number(a.priority || 0));
+
   return transactions.map((tx) => {
     const matched = prepared.find((rule) => isRuleMatch(tx, rule));
+
+    if (matched && matched.isTransfer && !matched.transferAccount) {
+      throw new Error(`振替ルールに transferAccount がありません: "${matched.keyword}"`);
+    }
+
     return {
       ...tx,
-      category: matched ? String(matched.category || DEFAULT_CATEGORY) : DEFAULT_CATEGORY
+      category: matched && !matched.isTransfer ? String(matched.category || DEFAULT_CATEGORY) : DEFAULT_CATEGORY,
+      isTransfer: Boolean(matched && matched.isTransfer),
+      transferAccount: matched && matched.isTransfer ? matched.transferAccount : null
     };
   });
+}
+
+function resolveTransferAccounts(tx, mfAccount) {
+  if (!tx || !tx.isTransfer) {
+    throw new Error('振替ではない取引に振替口座解決は使用できません');
+  }
+
+  const payPayAccount = normalizeAccountName(mfAccount);
+  const counterpartyAccount = normalizeAccountName(tx.transferAccount);
+
+  if (!counterpartyAccount) {
+    throw new Error(`振替先口座が指定されていません row=${tx.rowIndex}`);
+  }
+
+  const resolved = tx.direction === DIRECTION_OUT
+    ? { fromAccount: payPayAccount, toAccount: counterpartyAccount }
+    : { fromAccount: counterpartyAccount, toAccount: payPayAccount };
+
+  if (resolved.fromAccount === resolved.toAccount) {
+    throw new Error(`振替元と振替先に同じ口座は指定できません: ${resolved.fromAccount}`);
+  }
+
+  return resolved;
 }
 
 function applyExclude(transactions, prefixes) {
@@ -317,6 +365,8 @@ function loadCsv(csvPath) {
         user: String(row['利用者'] || '').trim(),
         rowFingerprint: '',
         category: DEFAULT_CATEGORY,
+        isTransfer: false,
+        transferAccount: null,
         transactionId: String(row['取引番号'] || '').trim() || null
       });
     } catch (error) {
@@ -340,6 +390,7 @@ module.exports = {
   DEFAULT_CATEGORY,
   parseArgs,
   parseJsonWithBomSupport,
+  normalizeMappingRule,
   normalizeConfig,
   parseCsvLine,
   normalizeAmount,
@@ -351,6 +402,7 @@ module.exports = {
   applyIncomeDateAdjustments,
   isRuleMatch,
   applyMapping,
+  resolveTransferAccounts,
   applyExclude,
   applyDuplicateDetection,
   loadCsv,

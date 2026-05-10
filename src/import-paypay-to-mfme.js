@@ -20,7 +20,8 @@ const {
   applyExclude,
   applyDuplicateDetection,
   loadCsv,
-  normalizeAccountName
+  normalizeAccountName,
+  resolveTransferAccounts
 } = require('./import-core');
 
 function loadJsonIfExists(filePath, fallback) {
@@ -89,11 +90,11 @@ async function ensureLoggedIn(page, options, mfmeConfig) {
   }
 }
 
-async function selectAccount(page, selectors, mfAccount) {
-  const options = page.locator(`${selectors.accountSelect} option`);
+async function selectNamedOption(page, selector, accountName, errorLabel) {
+  const options = page.locator(`${selector} option`);
   const count = await options.count();
   let matchedValue = null;
-  const normalized = normalizeAccountName(mfAccount);
+  const normalized = normalizeAccountName(accountName);
 
   for (let i = 0; i < count; i += 1) {
     const option = options.nth(i);
@@ -106,10 +107,20 @@ async function selectAccount(page, selectors, mfAccount) {
   }
 
   if (!matchedValue) {
-    throw new Error(`Money Forwardの口座選択に指定口座が見つかりません: ${mfAccount}`);
+    throw new Error(`${errorLabel}に指定口座が見つかりません: ${accountName}`);
   }
 
-  await page.selectOption(selectors.accountSelect, matchedValue);
+  await page.selectOption(selector, matchedValue);
+}
+
+async function selectAccount(page, selectors, mfAccount) {
+  await selectNamedOption(page, selectors.accountSelect, mfAccount, 'Money Forwardの口座選択');
+}
+
+async function selectTransferAccounts(page, selectors, tx, mfAccount) {
+  const resolved = resolveTransferAccounts(tx, mfAccount);
+  await selectNamedOption(page, selectors.transferFromSelect, resolved.fromAccount, '振替元口座選択');
+  await selectNamedOption(page, selectors.transferToSelect, resolved.toAccount, '振替先口座選択');
 }
 
 async function selectCategory(page, selectors, categoryMap, middleCategory) {
@@ -164,15 +175,25 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       await page.click(selectors.openManualFormButton);
       await page.waitForSelector(selectors.manualFormModal, { timeout: mfmeConfig.timeoutsMs.action, state: 'visible' });
 
-      if (tx.direction === DIRECTION_IN) {
+      if (tx.isTransfer) {
+        await page.click(selectors.transferPaymentInModal);
+        await page.waitForSelector(selectors.transferFromSelect, {
+          timeout: mfmeConfig.timeoutsMs.action,
+          state: 'visible'
+        });
+      } else if (tx.direction === DIRECTION_IN) {
         await page.click(selectors.plusPaymentInModal);
       } else {
         await page.click(selectors.minusPaymentInModal);
       }
 
       await page.fill(selectors.amountInput, String(tx.amount));
-      await selectAccount(page, selectors, userConfig.mfAccount);
-      await selectCategory(page, selectors, userConfig.categoryMap, tx.category);
+      if (tx.isTransfer) {
+        await selectTransferAccounts(page, selectors, tx, userConfig.mfAccount);
+      } else {
+        await selectAccount(page, selectors, userConfig.mfAccount);
+        await selectCategory(page, selectors, userConfig.categoryMap, tx.category);
+      }
       await page.fill(selectors.memoInput, tx.memo);
       await page.fill(selectors.dateInput, formatDateForForm(tx.date));
       await page.click(selectors.submitButton);

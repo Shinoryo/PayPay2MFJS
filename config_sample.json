@@ -17,6 +17,22 @@
       "matchMode": "contains",
       "direction": "income",
       "priority": 100
+    },
+    {
+      "keyword": "PayPayポイント運用",
+      "isTransfer": true,
+      "transferAccount": "PayPayポイント",
+      "matchMode": "contains",
+      "direction": "expense",
+      "priority": 400
+    },
+    {
+      "keyword": "PayPayポイント運用",
+      "isTransfer": true,
+      "transferAccount": "PayPayポイント",
+      "matchMode": "contains",
+      "direction": "income",
+      "priority": 400
     }
   ],
   "categoryMap": {
