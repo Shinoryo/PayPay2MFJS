@@ -36,27 +36,27 @@
 
 | ケースID | テスト名（node:test） | 前提 | 入力 | 期待結果 |
 | ---- | ---- | ---- | ---- | ---- |
-| TC-REGEX-02A | isRuleMatch throws when regex pattern is invalid | merchantが存在 | matchMode=regex, keyword="([invalid" | Errorがthrowされる |
-| TC-REGEX-02B | applyMapping propagates regex syntax errors | 対象transaction1件 | mappingRulesに不正regexを含む | Errorがthrowされる |
-| TC-KW-01A | isRuleMatch rejects empty keyword values | merchantが存在 | keyword=""/null/undefined | すべてfalse |
-| TC-CSV-01A | loadCsv reads BOM-prefixed CSV fixture file | samples/paypay_sample_bom.csv が存在 | loadCsv(fixturePath) | parseFailures=0, transactions=2 |
-| TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer ruleを含む設定 | isTransfer=true, transferAccountあり | 正規化後も値を保持 |
-| TC-TR-01B | normalizeMappingRule supports transfer aliases and boolean coercion | 旧キーを含むrule | `振替？`=`true`, `振替元・先` あり | `isTransfer` と `transferAccount` に変換 |
+| TC-REGEX-02A | isRuleMatch throws when regex pattern is invalid | merchant が存在する | matchMode=regex, keyword="([invalid" | 例外を送出する |
+| TC-REGEX-02B | applyMapping propagates regex syntax errors | 対象 transaction が 1 件 | mappingRules に不正な regex を含む | 例外を送出する |
+| TC-KW-01A | isRuleMatch rejects empty keyword values | merchant が存在する | keyword=""/null/undefined | すべて false |
+| TC-CSV-01A | loadCsv reads BOM-prefixed CSV fixture file | samples/paypay_sample_bom.csv が存在する | loadCsv(fixturePath) | parseFailures=0, transactions=2 |
+| TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer rule を含む設定 | isTransfer=true, transferAccount あり | 正規化後も値を保持する |
+| TC-TR-01B | normalizeMappingRule supports transfer aliases and boolean coercion | 旧キーを含むルール | `振替？`=`true`, `振替元・先` あり | `isTransfer` と `transferAccount` に変換する |
 | TC-TR-01C | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
 | TC-TR-01D | normalizeMappingRule trims and lowercases isTransfer strings | ルールに旧キーまたは `isTransfer` が文字列で設定されている | `'振替？': 'true ' / '振替？': ' True' / isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、'true' 系は true、その他は false と扱われる |
-| TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象transaction1件 | isTransfer=true のrule | isTransfer=true, category=Uncategorized |
-| TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象transaction1件 | transferAccountなしの振替rule | Errorがthrowされる |
-| TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替transaction | 振替元・振替先が期待通り |
-| TC-TR-03B | resolveTransferAccounts rejects same-account transfers | mfAccountとtransferAccountが同一 | 振替transaction | Errorがthrowされる |
-| TC-TR-04A | applyMapping prioritizes higher-priority transfer rule over category rule | 同一keywordで複数rule | transferとcategoryでpriority差あり | 高priorityのruleを採用 |
-| TC-TR-04B | applyMapping uses declaration order when priorities are equal | 同一keywordで複数rule | transferとcategoryでpriority同値 | mappingRulesの上側ruleを採用 |
+| TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象 transaction が 1 件 | isTransfer=true のルール | isTransfer=true, category=Uncategorized |
+| TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象 transaction が 1 件 | transferAccount なしの振替ルール | 例外を送出する |
+| TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替 transaction | 振替元・振替先が期待どおり |
+| TC-TR-03B | resolveTransferAccounts rejects same-account transfers | mfAccount と transferAccount が同一 | 振替 transaction | 例外を送出する |
+| TC-TR-04A | applyMapping prioritizes higher-priority transfer rule over category rule | 同一 keyword で複数ルール | transfer と category で priority 差あり | 高 priority のルールを採用 |
+| TC-TR-04B | applyMapping uses declaration order when priorities are equal | 同一 keyword で複数ルール | transfer と category で priority 同値 | mappingRules の上側ルールを採用 |
 
 ### 4.2 duplicate-detector
 
 | ケースID | テスト名（node:test） | 前提 | 入力 | 期待結果 |
 | ---- | ---- | ---- | ---- | ---- |
-| TC-DUP-02A | local detector flush throws DuplicateHistorySaveError when rename fails | markProcessed済み | fs.renameSyncを失敗モック | DuplicateHistorySaveError |
-| TC-DUP-03A | local detector keeps dirty state after flush failure for retry | markProcessed済み | flush失敗後のdirty参照 | dirty=true |
+| TC-DUP-02A | local detector flush throws DuplicateHistorySaveError when rename fails | markProcessed 済み | fs.renameSync を失敗モック | DuplicateHistorySaveError を送出する |
+| TC-DUP-03A | local detector keeps dirty state after flush failure for retry | markProcessed 済み | flush 失敗後の dirty を参照 | dirty=true を維持する |
 
 ## 5. テストデータ
 
