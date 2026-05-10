@@ -268,7 +268,15 @@ function resolveTransferAccounts(tx, mfAccount) {
   const counterpartyAccount = normalizeAccountName(tx.transferAccount);
 
   if (!counterpartyAccount) {
-    throw new Error(`振替先口座が指定されていません row=${tx.rowIndex}`);
+    let label;
+    if (tx.direction === DIRECTION_IN) {
+      label = '振替元口座';
+    } else if (tx.direction === DIRECTION_OUT) {
+      label = '振替先口座';
+    } else {
+      label = '振替相手口座';
+    }
+    throw new Error(`${label}が指定されていません row=${tx.rowIndex}`);
   }
 
   const resolved = tx.direction === DIRECTION_OUT
