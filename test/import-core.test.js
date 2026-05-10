@@ -92,6 +92,12 @@ test('normalizeMappingRule supports transfer aliases and boolean coercion', () =
   assert.equal(normalized.transferAccount, 'PayPayポイント');
 });
 
+test('normalizeMappingRule trims and lowercases isTransfer strings', () => {
+  assert.equal(normalizeMappingRule({ '振替？': 'true ' }).isTransfer, true);
+  assert.equal(normalizeMappingRule({ '振替？': ' True' }).isTransfer, true);
+  assert.equal(normalizeMappingRule({ isTransfer: ' FALSE ' }).isTransfer, false);
+});
+
 test('normalizeConfig normalizes transfer rules in mappingRules', () => {
   const normalized = normalizeConfig({
     mappingRules: [

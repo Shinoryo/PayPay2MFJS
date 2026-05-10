@@ -76,7 +76,7 @@ function normalizeMappingRule(rule) {
 
   return {
     ...normalizedRule,
-    isTransfer: rawIsTransfer === true || String(rawIsTransfer || '').toLowerCase() === 'true',
+    isTransfer: rawIsTransfer === true || String(rawIsTransfer || '').trim().toLowerCase() === 'true',
     transferAccount: transferAccount || null
   };
 }
