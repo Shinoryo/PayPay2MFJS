@@ -52,7 +52,7 @@
 | duplicateDetection.backend | string | `local` または `gcloud` |
 | duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
 | duplicateDetection.localStorePath | string | local バックエンドの履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
-| gcloudCredentialsPath | string | GCloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
+| gcloudCredentialsPath | string | gcloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
 
 `mappingRules` の正式スキーマ:
