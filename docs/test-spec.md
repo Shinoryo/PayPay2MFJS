@@ -71,7 +71,7 @@
 1. 依存関係をクリーンインストールする: npm ci
 2. Markdown を lint する: npm run lint:md
 3. ユニット/統合テストを実行する: npm test
-4. smokeを実行する: npm run smoke:dry-run
+4. smoke を実行する: npm run smoke:dry-run
 
 ## 7. 受け入れ基準
 
