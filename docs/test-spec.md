@@ -22,7 +22,6 @@
 | TC-KW-01 | 空の keyword | isRuleMatch | 空文字/null/undefined は false |
 | TC-CSV-01 | BOM 付き CSV | loadCsv | BOM を除去して正常に 2 件読み込む |
 | TC-TR-01 | 振替ルール正規化 | normalizeConfig | isTransfer と transferAccount を正規化 |
-| TC-TR-01C | 振替/カテゴリ衝突検出 | normalizeMappingRule / normalizeConfig | `isTransfer=true` と `category` を同時に指定した場合は例外を送出 |
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
@@ -41,9 +40,8 @@
 | TC-KW-01A | isRuleMatch rejects empty keyword values | merchant が存在する | keyword=""/null/undefined | すべて false |
 | TC-CSV-01A | loadCsv reads BOM-prefixed CSV fixture file | samples/paypay_sample_bom.csv が存在する | loadCsv(fixturePath) | parseFailures=0, transactions=2 |
 | TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer rule を含む設定 | isTransfer=true, transferAccount あり | 正規化後も値を保持する |
-| TC-TR-01B | normalizeMappingRule supports transfer aliases and boolean coercion | 旧キーを含むルール | `振替？`=`true`, `振替元・先` あり | `isTransfer` と `transferAccount` に変換する |
-| TC-TR-01C | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
-| TC-TR-01D | normalizeMappingRule trims and lowercases isTransfer strings | ルールに旧キーまたは `isTransfer` が文字列で設定されている | `'振替？': 'true ' / '振替？': ' True' / isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、'true' 系は true、その他は false と扱われる |
+| TC-TR-01B | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
+| TC-TR-01C | normalizeMappingRule trims and lowercases isTransfer strings | ルールに `isTransfer` が文字列で設定されている | `isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、false と扱われる |
 | TC-TR-02A | applyMapping marks transfer rules and leaves category uncategorized | 対象 transaction が 1 件 | isTransfer=true のルール | isTransfer=true, category=Uncategorized |
 | TC-TR-02B | applyMapping throws when matched transfer rule is missing transferAccount | 対象 transaction が 1 件 | transferAccount なしの振替ルール | 例外を送出する |
 | TC-TR-03A | resolveTransferAccounts maps expense and income around PayPay account | mfAccount=PayPay | expense/income の振替 transaction | 振替元・振替先が期待どおり |
