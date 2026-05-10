@@ -26,7 +26,10 @@
     "middleCategoryLink": "a.m_c_name",
     "loginForm": "form[action*='sign_in'], input[type='email'], input[type='password']",
     "plusPaymentInModal": "#user_asset_act_new input.plus-payment",
-    "minusPaymentInModal": "#user_asset_act_new input.minus-payment"
+    "minusPaymentInModal": "#user_asset_act_new input.minus-payment",
+    "transferPaymentInModal": "#user_asset_act_new input.transfer-payment",
+    "transferFromSelect": "#user_asset_act_sub_account_id_hash_from",
+    "transferToSelect": "#user_asset_act_sub_account_id_hash_to"
   },
   "submitErrorSelectors": [
     "#user_asset_act_new .flash_alert",

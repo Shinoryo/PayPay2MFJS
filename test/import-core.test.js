@@ -10,6 +10,7 @@ const {
   DEFAULT_CATEGORY,
   parseArgs,
   parseJsonWithBomSupport,
+  normalizeMappingRule,
   normalizeConfig,
   parseCsvLine,
   normalizeAmount,
@@ -21,6 +22,7 @@ const {
   applyIncomeDateAdjustments,
   isRuleMatch,
   applyMapping,
+  resolveTransferAccounts,
   applyExclude,
   applyDuplicateDetection,
   loadCsv,
@@ -77,6 +79,35 @@ test('normalizeConfig fills defaults and preserves valid nested settings', () =>
   assert.equal(normalized.duplicateDetection.localStorePath, 'logs/custom.json');
   assert.equal(normalized.gcloudCredentialsPath, 'secrets/key.json');
   assert.equal(normalized.advanced.screenshotOnError, true);
+});
+
+test('normalizeMappingRule throws when isTransfer and category are both specified', () => {
+  assert.throws(() =>
+    normalizeMappingRule({ keyword: 'コンフリクト', isTransfer: true, category: '雑費' })
+  );
+});
+
+test('normalizeMappingRule trims and lowercases isTransfer strings', () => {
+  assert.equal(normalizeMappingRule({ isTransfer: ' FALSE ' }).isTransfer, false);
+});
+
+test('normalizeMappingRule trims whitespace from category', () => {
+  assert.equal(normalizeMappingRule({ keyword: 'テスト', category: ' 食費 ' }).category, '食費');
+});
+
+test('normalizeConfig normalizes transfer rules in mappingRules', () => {
+  const normalized = normalizeConfig({
+    mappingRules: [
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント'
+      }
+    ]
+  });
+
+  assert.equal(normalized.mappingRules[0].isTransfer, true);
+  assert.equal(normalized.mappingRules[0].transferAccount, 'PayPayポイント');
 });
 
 test('parseCsvLine supports quoted commas and escaped quotes', () => {
@@ -157,6 +188,108 @@ test('applyMapping applies highest priority rule and defaults category', () => {
 
   assert.equal(mapped[0].category, '食費');
   assert.equal(mapped[1].category, DEFAULT_CATEGORY);
+});
+
+test('applyMapping marks transfer rules and leaves category uncategorized', () => {
+  const mapped = applyMapping(
+    [
+      { merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }
+    ],
+    [
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント',
+        priority: 100
+      }
+    ]
+  );
+
+  assert.equal(mapped[0].isTransfer, true);
+  assert.equal(mapped[0].transferAccount, 'PayPayポイント');
+  assert.equal(mapped[0].category, DEFAULT_CATEGORY);
+});
+
+test('applyMapping throws when matched transfer rule is missing transferAccount', () => {
+  assert.throws(() =>
+    applyMapping(
+      [{ merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }],
+      [{ keyword: 'PayPayポイント運用', isTransfer: true }]
+    )
+  );
+});
+
+test('applyMapping prefers higher-priority rule on transfer/category conflicts', () => {
+  const mapped = applyMapping(
+    [{ merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }],
+    [
+      {
+        keyword: 'PayPayポイント運用',
+        category: '雑費',
+        priority: 100
+      },
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント',
+        priority: 200
+      }
+    ]
+  );
+
+  assert.equal(mapped[0].isTransfer, true);
+  assert.equal(mapped[0].transferAccount, 'PayPayポイント');
+  assert.equal(mapped[0].category, DEFAULT_CATEGORY);
+});
+
+test('applyMapping uses declaration order when priorities are equal', () => {
+  const mapped = applyMapping(
+    [{ merchant: 'PayPayポイント運用', direction: DIRECTION_OUT }],
+    [
+      {
+        keyword: 'PayPayポイント運用',
+        category: '雑費',
+        priority: 100
+      },
+      {
+        keyword: 'PayPayポイント運用',
+        isTransfer: true,
+        transferAccount: 'PayPayポイント',
+        priority: 100
+      }
+    ]
+  );
+
+  assert.equal(mapped[0].isTransfer, false);
+  assert.equal(mapped[0].transferAccount, null);
+  assert.equal(mapped[0].category, '雑費');
+});
+
+test('resolveTransferAccounts maps expense and income around PayPay account', () => {
+  assert.deepEqual(
+    resolveTransferAccounts(
+      { isTransfer: true, transferAccount: 'PayPayポイント', direction: DIRECTION_OUT, rowIndex: 1 },
+      'PayPay'
+    ),
+    { fromAccount: 'PayPay', toAccount: 'PayPayポイント' }
+  );
+
+  assert.deepEqual(
+    resolveTransferAccounts(
+      { isTransfer: true, transferAccount: 'PayPayポイント', direction: DIRECTION_IN, rowIndex: 2 },
+      'PayPay'
+    ),
+    { fromAccount: 'PayPayポイント', toAccount: 'PayPay' }
+  );
+});
+
+test('resolveTransferAccounts rejects same-account transfers', () => {
+  assert.throws(() =>
+    resolveTransferAccounts(
+      { isTransfer: true, transferAccount: 'PayPay', direction: DIRECTION_OUT, rowIndex: 1 },
+      'PayPay'
+    )
+  );
 });
 
 test('applyMapping propagates regex syntax errors', () => {
