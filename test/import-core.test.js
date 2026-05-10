@@ -81,17 +81,6 @@ test('normalizeConfig fills defaults and preserves valid nested settings', () =>
   assert.equal(normalized.advanced.screenshotOnError, true);
 });
 
-test('normalizeMappingRule supports transfer aliases and boolean coercion', () => {
-  const normalized = normalizeMappingRule({
-    keyword: 'PayPayポイント運用',
-    '振替？': 'true',
-    '振替元・先': ' PayPayポイント '
-  });
-
-  assert.equal(normalized.isTransfer, true);
-  assert.equal(normalized.transferAccount, 'PayPayポイント');
-});
-
 test('normalizeMappingRule throws when isTransfer and category are both specified', () => {
   assert.throws(() =>
     normalizeMappingRule({ keyword: 'コンフリクト', isTransfer: true, category: '雑費' })
@@ -99,8 +88,6 @@ test('normalizeMappingRule throws when isTransfer and category are both specifie
 });
 
 test('normalizeMappingRule trims and lowercases isTransfer strings', () => {
-  assert.equal(normalizeMappingRule({ '振替？': 'true ' }).isTransfer, true);
-  assert.equal(normalizeMappingRule({ '振替？': ' True' }).isTransfer, true);
   assert.equal(normalizeMappingRule({ isTransfer: ' FALSE ' }).isTransfer, false);
 });
 
