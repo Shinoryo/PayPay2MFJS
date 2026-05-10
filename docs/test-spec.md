@@ -60,9 +60,9 @@
 
 ## 5. テストデータ
 
-- 固定fixture:
+- 固定 fixture:
 - samples/paypay_sample.csv
-- samples/paypay_sample_bom.csv（UTF-8 BOM付き）
+- samples/paypay_sample_bom.csv（UTF-8 BOM 付き）
 - 一時ファイル:
 - test/import-core.test.js 内で作成する sample.csv
 
