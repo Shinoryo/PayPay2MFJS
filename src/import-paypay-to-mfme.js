@@ -161,6 +161,7 @@ async function waitSubmitOutcome(page, mfmeConfig) {
   throw new Error('登録結果を判定できませんでした');
 }
 
+// Close a potentially open datepicker before submit to reduce click interception risk.
 async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
   const closeWaitMs = Math.min(mfmeConfig.timeoutsMs.action, 1500);
 

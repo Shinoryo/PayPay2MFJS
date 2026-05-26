@@ -4,6 +4,7 @@
 
 - PayPay CSV 取り込み処理の回帰を防ぎ、境界条件と失敗系の挙動を安定して保証する。
 - とくに不正な正規表現、空の keyword、BOM 付き CSV、振替ルール、重複履歴の flush 失敗の仕様を明文化する。
+- 日付入力後の datepicker 残留による保存失敗を防ぐ UI 安定化挙動を明文化する。
 
 ## 2. 範囲
 
@@ -25,6 +26,7 @@
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
+| TC-UI-01 | 保存前 datepicker クローズ | importTransactions | 日付入力後にクローズを試みて保存クリックを継続する |
 | TC-DUP-01 | flush 正常系 | LocalDuplicateDetector.flush | processed.json の保存に成功する |
 | TC-DUP-02 | flush 失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError を送出する |
 | TC-DUP-03 | flush 失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true を維持する |
@@ -57,6 +59,12 @@
 | TC-DUP-02A | local detector flush throws DuplicateHistorySaveError when rename fails | markProcessed 済み | fs.renameSync を失敗モック | DuplicateHistorySaveError を送出する |
 | TC-DUP-03A | local detector keeps dirty state after flush failure for retry | markProcessed 済み | flush 失敗後の dirty を参照 | dirty=true を維持する |
 
+### 4.3 import-paypay-to-mfme
+
+| ケースID | テスト名（確認観点） | 前提 | 入力 | 期待結果 |
+| ---- | ---- | ---- | ---- | ---- |
+| TC-UI-01A | datepicker is explicitly closed before submit click | Money Forward の手入力モーダル表示中 | 日付入力後に保存処理を実行 | 保存前に datepicker クローズを試み、保存クリックへ進む |
+
 ## 5. テストデータ
 
 - 固定 fixture:
@@ -75,7 +83,7 @@
 ## 7. 受け入れ基準
 
 - 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01, TC-TR-02,
-   TC-TR-03, TC-TR-04, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
+   TC-TR-03, TC-TR-04, TC-UI-01, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
 - dry-run の既存挙動（高速で、副作用を最小限に抑える）が維持される。
 - 仕様変更なし（不正な regex は例外送出のまま）。
 - 振替ルールは、同じ `mappingRules` 配列内でカテゴリルールと共存できる。
