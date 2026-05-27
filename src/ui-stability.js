@@ -1,4 +1,18 @@
-﻿async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
+﻿/**
+ * Datepicker が submit ボタンを覆ってクリックを阻害しないように、保存前の
+ * クローズ手順を試行する。close ステップで失敗しても処理は継続し、診断情報を返す。
+ *
+ * @returns {{
+ *   ok: boolean,
+ *   closeWaitMs: number,
+ *   steps: {
+ *     pressEscape: { ok: boolean, error: string | null },
+ *     blurInput: { ok: boolean, error: string | null },
+ *     waitDatepickerHidden: { ok: boolean, error: string | null }
+ *   }
+ * }}
+ */
+async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
   const closeWaitMs = Math.min(mfmeConfig.timeoutsMs.action, 1500);
   const dateInput = page.locator(selectors.dateInput);
   const result = {

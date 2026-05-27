@@ -55,6 +55,7 @@
 | duplicateDetection.localStorePath | string | local バックエンドの履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
 | gcloudCredentialsPath | string | gcloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
+| advanced.includeUiCloseDiagnosticsOnError | boolean | 登録失敗時に datepicker クローズ処理の診断情報を追加出力（既定値: false） |
 
 `mappingRules` のスキーマ:
 
@@ -119,7 +120,8 @@
     },
     "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
     "advanced": {
-        "screenshotOnError": true
+        "screenshotOnError": true,
+        "includeUiCloseDiagnosticsOnError": false
     }
 }
 ```
@@ -280,7 +282,13 @@ flowchart TD
 
 [登録失敗] 行=23 取引先=Example Store エラー=Money Forwardの口座選択に指定口座が見つかりません: PayPay
 [成果物] スクリーンショット=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
+[UI診断] 行=23 closeSteps={"pressEscape":{"ok":false,"error":"press failed"},"blurInput":{"ok":true,"error":null},"waitDatepickerHidden":{"ok":false,"error":"wait failed"}}
 ```
+
+補足:
+
+- `[UI診断]` は `advanced.includeUiCloseDiagnosticsOnError=true` かつ
+    datepicker クローズ手順で失敗が発生した場合のみ出力される。
 
 ## ライセンス
 

@@ -27,6 +27,7 @@
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
 | TC-UI-01 | 保存前 datepicker クローズ | closeDatepickerBeforeSubmit | 日付入力後に datepicker のクローズを試み、後続の保存操作を阻害しない |
+| TC-UI-02 | close ステップ診断情報 | closeDatepickerBeforeSubmit | 失敗ステップの ok/error を結果オブジェクトに格納し、関数自体は例外送出しない |
 | TC-DUP-01 | flush 正常系 | LocalDuplicateDetector.flush | processed.json の保存に成功する |
 | TC-DUP-02 | flush 失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError を送出する |
 | TC-DUP-03 | flush 失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true を維持する |
@@ -64,6 +65,8 @@
 | ケースID | テスト名（確認観点） | 前提 | 入力 | 期待結果 |
 | ---- | ---- | ---- | ---- | ---- |
 | TC-UI-01A | datepicker is explicitly closed before submit click | Money Forward の手入力モーダル表示中 | 日付入力後に保存処理を実行 | 保存前に datepicker クローズを試み、保存クリックへ進む |
+| TC-UI-02A | closeDatepickerBeforeSubmit swallows close step errors and keeps going | close 3 ステップが失敗するモック | press/evaluate/wait すべて失敗 | 関数は例外を送出せず、返却値で各ステップの失敗を検証できる |
+| TC-UI-02B | closeDatepickerBeforeSubmit returns diagnostics when some close steps fail | press と wait のみ失敗するモック | press/wait 失敗 | `ok=false` かつ失敗ステップの `error` が保持される |
 
 ## 5. テストデータ
 
@@ -83,7 +86,7 @@
 ## 7. 受け入れ基準
 
 - 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01, TC-TR-02,
-   TC-TR-03, TC-TR-04, TC-UI-01, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
+   TC-TR-03, TC-TR-04, TC-UI-01, TC-UI-02, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
 - dry-run の既存挙動（高速で、副作用を最小限に抑える）が維持される。
 - 仕様変更なし（不正な regex は例外送出のまま）。
 - 振替ルールは、同じ `mappingRules` 配列内でカテゴリルールと共存できる。
