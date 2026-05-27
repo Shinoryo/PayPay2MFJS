@@ -1,12 +1,13 @@
 ﻿async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
   const closeWaitMs = Math.min(mfmeConfig.timeoutsMs.action, 1500);
+  const dateInput = page.locator(selectors.dateInput);
 
-  await page.locator(selectors.dateInput).press('Escape').catch(() => {});
-  await page.locator(selectors.dateInput).evaluate((input) => {
+  await dateInput.press('Escape', { timeout: closeWaitMs }).catch(() => {});
+  await dateInput.evaluate((input) => {
     if (input && typeof input.blur === 'function') {
       input.blur();
     }
-  }).catch(() => {});
+  }, { timeout: closeWaitMs }).catch(() => {});
 
   await page.waitForFunction(() => {
     const datepickers = Array.from(document.querySelectorAll('.datepicker.dropdown-menu'));
