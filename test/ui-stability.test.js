@@ -75,7 +75,7 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
   const selectors = { dateInput: '#updated-at' };
   const mfmeConfig = { timeoutsMs: { action: 800 } };
 
-  await assert.doesNotReject(() => closeDatepickerBeforeSubmit(page, selectors, mfmeConfig));
+  const result = await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
 
   assert.deepEqual(page.calls, [
     'locator:#updated-at',
@@ -83,6 +83,13 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
     'evaluate',
     'waitForFunction:800'
   ]);
+  assert.equal(result.ok, false);
+  assert.equal(result.steps.pressEscape.ok, false);
+  assert.match(result.steps.pressEscape.error, /press failed/);
+  assert.equal(result.steps.blurInput.ok, false);
+  assert.match(result.steps.blurInput.error, /evaluate failed/);
+  assert.equal(result.steps.waitDatepickerHidden.ok, false);
+  assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
 });
 
 test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail', async () => {
