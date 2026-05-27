@@ -69,7 +69,7 @@ test('normalizeConfig fills defaults and preserves valid nested settings', () =>
       localStorePath: 'logs/custom.json'
     },
     gcloudCredentialsPath: 'secrets/key.json',
-    advanced: { screenshotOnError: 1 }
+    advanced: { screenshotOnError: 1, includeUiCloseDiagnosticsOnError: 1 }
   });
 
   assert.equal(normalized.mfAccount, 'Main');
@@ -79,6 +79,12 @@ test('normalizeConfig fills defaults and preserves valid nested settings', () =>
   assert.equal(normalized.duplicateDetection.localStorePath, 'logs/custom.json');
   assert.equal(normalized.gcloudCredentialsPath, 'secrets/key.json');
   assert.equal(normalized.advanced.screenshotOnError, true);
+  assert.equal(normalized.advanced.includeUiCloseDiagnosticsOnError, true);
+});
+
+test('normalizeConfig sets includeUiCloseDiagnosticsOnError default to false', () => {
+  const normalized = normalizeConfig({});
+  assert.equal(normalized.advanced.includeUiCloseDiagnosticsOnError, false);
 });
 
 test('normalizeMappingRule throws when isTransfer and category are both specified', () => {

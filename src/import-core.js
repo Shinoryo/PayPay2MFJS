@@ -108,7 +108,10 @@ function normalizeConfig(userConfig) {
     },
     gcloudCredentialsPath: userConfig.gcloudCredentialsPath || null,
     advanced: {
-      screenshotOnError: Boolean(userConfig.advanced && userConfig.advanced.screenshotOnError)
+      screenshotOnError: Boolean(userConfig.advanced && userConfig.advanced.screenshotOnError),
+      includeUiCloseDiagnosticsOnError: Boolean(
+        userConfig.advanced && userConfig.advanced.includeUiCloseDiagnosticsOnError
+      )
     }
   };
 }

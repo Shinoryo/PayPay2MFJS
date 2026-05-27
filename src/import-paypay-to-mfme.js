@@ -172,6 +172,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
   fs.mkdirSync(path.resolve(mfmeConfig.artifactsDir), { recursive: true });
 
   for (const tx of transactions) {
+    let closeUiResult = null;
     try {
       await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector(selectors.openManualFormButton, { timeout: mfmeConfig.timeoutsMs.navigation });
@@ -199,7 +200,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       }
       await page.fill(selectors.memoInput, tx.memo);
       await page.fill(selectors.dateInput, formatDateForForm(tx.date));
-      await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
+      closeUiResult = await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
       await page.click(selectors.submitButton);
 
       await waitSubmitOutcome(page, mfmeConfig);
@@ -219,6 +220,14 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       summary.failed += 1;
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[登録失敗] 行=${tx.rowIndex} 取引先=${tx.merchant} エラー=${message}`);
+
+      if (
+        userConfig.advanced.includeUiCloseDiagnosticsOnError
+        && closeUiResult
+        && !closeUiResult.ok
+      ) {
+        console.error(`[UI診断] 行=${tx.rowIndex} closeSteps=${JSON.stringify(closeUiResult.steps)}`);
+      }
 
       if (userConfig.advanced.screenshotOnError) {
         const outPath = path.resolve(
