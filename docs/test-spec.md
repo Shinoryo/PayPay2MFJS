@@ -26,7 +26,7 @@
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
 | TC-TR-04 | 競合時の優先順位 | applyMapping | priority優先、同値は設定順で決定 |
-| TC-UI-01 | 保存前 datepicker クローズ | importTransactions | 日付入力後にクローズを試みて保存クリックを継続する |
+| TC-UI-01 | 保存前 datepicker クローズ | closeDatepickerBeforeSubmit | 日付入力後に datepicker のクローズを試み、後続の保存操作を阻害しない |
 | TC-DUP-01 | flush 正常系 | LocalDuplicateDetector.flush | processed.json の保存に成功する |
 | TC-DUP-02 | flush 失敗系 | LocalDuplicateDetector.flush | DuplicateHistorySaveError を送出する |
 | TC-DUP-03 | flush 失敗後再試行性 | LocalDuplicateDetector.flush | dirty=true を維持する |
