@@ -51,7 +51,7 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
   const selectors = { dateInput: '#updated-at' };
   const mfmeConfig = { timeoutsMs: { action: 10000 } };
 
-  await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
+  const result = await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
 
   assert.deepEqual(page.calls, [
     'locator:#updated-at',
@@ -59,6 +59,15 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
     'evaluate',
     'waitForFunction:1500'
   ]);
+  assert.deepEqual(result, {
+    ok: true,
+    closeWaitMs: 1500,
+    steps: {
+      pressEscape: { ok: true, error: null },
+      blurInput: { ok: true, error: null },
+      waitDatepickerHidden: { ok: true, error: null }
+    }
+  });
 });
 
 test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', async () => {
@@ -74,4 +83,20 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
     'evaluate',
     'waitForFunction:800'
   ]);
+});
+
+test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail', async () => {
+  const page = createPageMock({ pressReject: true, waitReject: true });
+  const selectors = { dateInput: '#updated-at' };
+  const mfmeConfig = { timeoutsMs: { action: 800 } };
+
+  const result = await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.closeWaitMs, 800);
+  assert.equal(result.steps.pressEscape.ok, false);
+  assert.match(result.steps.pressEscape.error, /press failed/);
+  assert.deepEqual(result.steps.blurInput, { ok: true, error: null });
+  assert.equal(result.steps.waitDatepickerHidden.ok, false);
+  assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
 });
