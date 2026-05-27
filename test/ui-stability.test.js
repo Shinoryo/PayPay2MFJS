@@ -56,7 +56,6 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
   assert.deepEqual(page.calls, [
     'locator:#updated-at',
     'press:Escape',
-    'locator:#updated-at',
     'evaluate',
     'waitForFunction:1500'
   ]);
@@ -72,7 +71,6 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
   assert.deepEqual(page.calls, [
     'locator:#updated-at',
     'press:Escape',
-    'locator:#updated-at',
     'evaluate',
     'waitForFunction:800'
   ]);
