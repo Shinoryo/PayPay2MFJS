@@ -65,7 +65,7 @@
 | ケースID | テスト名（確認観点） | 前提 | 入力 | 期待結果 |
 | ---- | ---- | ---- | ---- | ---- |
 | TC-UI-01A | datepicker is explicitly closed before submit click | Money Forward の手入力モーダル表示中 | 日付入力後に保存処理を実行 | 保存前に datepicker クローズを試み、保存クリックへ進む |
-| TC-UI-02A | closeDatepickerBeforeSubmit swallows close step errors and keeps going | close 3 ステップが失敗するモック | press/evaluate/wait すべて失敗 | 関数は例外を送出せず、返却値で各ステップの失敗を検証できる |
+| TC-UI-02A | closeDatepickerBeforeSubmit swallows close step errors and keeps going | close 4 ステップが失敗するモック | evaluate/press/click/wait すべて失敗 | 関数は例外を送出せず、返却値で各ステップの失敗を検証できる |
 | TC-UI-02B | closeDatepickerBeforeSubmit returns diagnostics when some close steps fail | press と wait のみ失敗するモック | press/wait 失敗 | `ok=false` かつ失敗ステップの `error` が保持される |
 
 ## 5. テストデータ

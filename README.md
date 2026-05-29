@@ -282,7 +282,7 @@ flowchart TD
 
 [登録失敗] 行=23 取引先=Example Store エラー=Money Forwardの口座選択に指定口座が見つかりません: PayPay
 [成果物] スクリーンショット=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
-[UI診断] 行=23 closeSteps={"pressEscape":{"ok":false,"error":"press failed"},"blurInput":{"ok":true,"error":null},"waitDatepickerHidden":{"ok":false,"error":"wait failed"}}
+[UI診断] 行=23 closeSteps={"blurInput":{"ok":true,"error":null},"pressTab":{"ok":false,"error":"press failed"},"clickModalSafeArea":{"ok":true,"error":null},"waitDatepickerHidden":{"ok":false,"error":"wait failed"}}
 ```
 
 補足:
