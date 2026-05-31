@@ -2,6 +2,8 @@
  * Datepicker が submit ボタンを覆ってクリックを阻害しないように、保存前の
  * クローズ手順を試行する。親モーダルへの副作用を避けるため Escape は使わない。
  * close ステップで失敗しても処理は継続し、診断情報を返す。
+ * Locator.evaluate は第2引数が page-function 引数、第3引数が options のため
+ * timeout は必ず第3引数で指定する。
  *
  * @returns {{
  *   ok: boolean,
