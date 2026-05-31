@@ -90,7 +90,7 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
     }
   });
   assert.equal(typeof page.waitCalls[0].predicate, 'function');
-  assert.equal(page.waitCalls[0].selector, undefined);
+  assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
   assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 1500 });
 });
 
@@ -124,7 +124,7 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
   assert.equal(result.steps.waitDatepickerHidden.ok, false);
   assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
   assert.equal(typeof page.waitCalls[0].predicate, 'function');
-  assert.equal(page.waitCalls[0].selector, undefined);
+  assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
   assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 800 });
 });
 
@@ -143,4 +143,5 @@ test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail
   assert.deepEqual(result.steps.clickModalSafeArea, { ok: true, error: null });
   assert.equal(result.steps.waitDatepickerHidden.ok, false);
   assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
+  assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
 });

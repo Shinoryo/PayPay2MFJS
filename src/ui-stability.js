@@ -61,8 +61,8 @@ async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
     }));
   }
 
-  await runCloseStep(result, 'waitDatepickerHidden', () => page.waitForFunction(() => {
-    const datepickers = Array.from(document.querySelectorAll(DATEPICKER_SELECTOR));
+  await runCloseStep(result, 'waitDatepickerHidden', () => page.waitForFunction((selector) => {
+    const datepickers = Array.from(document.querySelectorAll(selector));
     if (datepickers.length === 0) {
       return true;
     }
@@ -75,7 +75,7 @@ async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
       const rect = node.getBoundingClientRect();
       return rect.width === 0 || rect.height === 0;
     });
-  }, { timeout: closeWaitMs }));
+  }, DATEPICKER_SELECTOR, { timeout: closeWaitMs }));
 
   return result;
 }
