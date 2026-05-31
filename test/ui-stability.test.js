@@ -8,6 +8,7 @@ const {
 function createPageMock(options = {}) {
   const calls = [];
   const waitCalls = [];
+  const evaluateCalls = [];
 
   const dateInputLocator = {
     async press(key) {
@@ -16,8 +17,9 @@ function createPageMock(options = {}) {
         throw new Error('press failed');
       }
     },
-    async evaluate(fn) {
+    async evaluate(fn, arg, evaluateOptions) {
       calls.push('evaluate');
+      evaluateCalls.push({ arg, evaluateOptions });
       if (options.evaluateReject) {
         throw new Error('evaluate failed');
       }
@@ -27,7 +29,7 @@ function createPageMock(options = {}) {
           this.blurCalled = true;
         }
       };
-      fn(fakeInput);
+      fn(fakeInput, arg);
       return fakeInput.blurCalled;
     }
   };
@@ -44,6 +46,7 @@ function createPageMock(options = {}) {
   return {
     calls,
     waitCalls,
+    evaluateCalls,
     locator(selector) {
       calls.push(`locator:${selector}`);
       if (selector === '#manual-form-modal') {
@@ -92,6 +95,9 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
   assert.equal(typeof page.waitCalls[0].predicate, 'function');
   assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
   assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 1500 });
+  assert.equal(page.evaluateCalls.length, 1);
+  assert.equal(page.evaluateCalls[0].arg, undefined);
+  assert.deepEqual(page.evaluateCalls[0].evaluateOptions, { timeout: 1500 });
 });
 
 test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', async () => {
@@ -126,6 +132,9 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
   assert.equal(typeof page.waitCalls[0].predicate, 'function');
   assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
   assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 800 });
+  assert.equal(page.evaluateCalls.length, 1);
+  assert.equal(page.evaluateCalls[0].arg, undefined);
+  assert.deepEqual(page.evaluateCalls[0].evaluateOptions, { timeout: 800 });
 });
 
 test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail', async () => {
@@ -144,4 +153,7 @@ test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail
   assert.equal(result.steps.waitDatepickerHidden.ok, false);
   assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
   assert.equal(page.waitCalls[0].selector, '.datepicker.dropdown-menu');
+  assert.equal(page.evaluateCalls.length, 1);
+  assert.equal(page.evaluateCalls[0].arg, undefined);
+  assert.deepEqual(page.evaluateCalls[0].evaluateOptions, { timeout: 800 });
 });
