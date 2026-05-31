@@ -16,6 +16,7 @@
 - 特定の入金は固定業務ルールに基づき、Money Forward 登録日を 30 日後へ補正する。
 - Playwright の persistent profile により、初回ログイン後は再ログインなしで実行できる。
 - dry-run モードで登録前に件数確認のみ実行できる。
+- 日付入力後は保存前に datepicker のクローズを試み、UI 重なりによる保存失敗リスクを下げる。
 - 登録失敗時にスクリーンショットを保存できる。
 
 ## 入力
@@ -54,6 +55,7 @@
 | duplicateDetection.localStorePath | string | local バックエンドの履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
 | gcloudCredentialsPath | string | gcloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
 | advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
+| advanced.includeUiCloseDiagnosticsOnError | boolean | 登録失敗時に datepicker クローズ処理の診断情報を追加出力（既定値: false） |
 
 `mappingRules` のスキーマ:
 
@@ -118,7 +120,8 @@
     },
     "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
     "advanced": {
-        "screenshotOnError": true
+        "screenshotOnError": true,
+        "includeUiCloseDiagnosticsOnError": false
     }
 }
 ```
@@ -220,17 +223,18 @@ npm run smoke:dry-run
 2. 設定 JSON と UI セレクター設定を読み込む。
 3. PayPay 利用明細 CSV を読み込み、行単位で解析して取引データを生成する。
 4. 次の条件の全てに当てはまる特定の入金だけ、登録用日付を 30 日後へ補正する。
-  - `取引内容=ポイント、残高の獲得`
-  - `取引方法=PayPayポイント`
-  - `取引先` が `ワイモバイル` と `Yahoo!ズバトク` 以外
+    条件: `取引内容=ポイント、残高の獲得` かつ
+    `取引方法=PayPayポイント` かつ `取引先` が
+    `ワイモバイル` と `Yahoo!ズバトク` 以外。
 5. ルールに基づきカテゴリを付与し、プレフィックス除外と重複検知を適用する。
 6. 振替ルールに一致した取引は、カテゴリの代わりに振替元・振替先を決定する。
 7. dry-run 指定時は集計のみ出力して終了する（履歴更新なし）。
 8. ブラウザーを起動し、必要に応じてログイン完了を待つ。
 9. 対象取引を 1 件ずつ Money Forward 手入力画面へ登録する。
 10. 通常ルールは口座とカテゴリを入力し、振替ルールは同一モーダルの振替タブで振替元・振替先を入力する。
-11. 登録成功後に重複履歴を更新する。
-12. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
+11. 日付入力後は datepicker が残っている場合に備えて、保存前にクローズを試みる。
+12. 登録成功後に重複履歴を更新する。
+13. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
 
 ```mermaid
 flowchart TD
@@ -247,6 +251,7 @@ flowchart TD
 ```
 
 補足:
+
 - 重複指紋は PayPay 利用明細 CSV の `取引日` を使って判定し、補正後日付へは切り替えない。
 
 ## ログ出力
@@ -277,7 +282,13 @@ flowchart TD
 
 [登録失敗] 行=23 取引先=Example Store エラー=Money Forwardの口座選択に指定口座が見つかりません: PayPay
 [成果物] スクリーンショット=C:\path\to\artifacts\failed-row-23-XXXXXXXX.png
+[UI診断] 行=23 closeSteps={"blurInput":{"ok":true,"error":null},"pressTab":{"ok":false,"error":"press failed"},"clickModalSafeArea":{"ok":true,"error":null},"waitDatepickerHidden":{"ok":false,"error":"wait failed"}}
 ```
+
+補足:
+
+- `[UI診断]` は `advanced.includeUiCloseDiagnosticsOnError=true` かつ
+    datepicker クローズ手順で失敗が発生した場合のみ出力される。
 
 ## ライセンス
 

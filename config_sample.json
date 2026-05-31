@@ -150,6 +150,7 @@
   },
   "gcloudCredentialsPath": "./secrets/paypay2mf-credentials.json",
   "advanced": {
-    "screenshotOnError": true
+    "screenshotOnError": true,
+    "includeUiCloseDiagnosticsOnError": false
   }
 }

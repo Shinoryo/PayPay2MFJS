@@ -23,6 +23,13 @@ const {
   normalizeAccountName,
   resolveTransferAccounts
 } = require('./import-core');
+const {
+  closeDatepickerBeforeSubmit
+} = require('./ui-stability');
+
+function toErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 function loadJsonIfExists(filePath, fallback) {
   const resolved = path.resolve(filePath);
@@ -169,6 +176,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
   fs.mkdirSync(path.resolve(mfmeConfig.artifactsDir), { recursive: true });
 
   for (const tx of transactions) {
+    let closeUiResult = null;
     try {
       await page.goto(mfmeConfig.urls.manualForm, { waitUntil: 'domcontentloaded' });
       await page.waitForSelector(selectors.openManualFormButton, { timeout: mfmeConfig.timeoutsMs.navigation });
@@ -196,6 +204,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       }
       await page.fill(selectors.memoInput, tx.memo);
       await page.fill(selectors.dateInput, formatDateForForm(tx.date));
+      closeUiResult = await closeDatepickerBeforeSubmit(page, selectors, mfmeConfig);
       await page.click(selectors.submitButton);
 
       await waitSubmitOutcome(page, mfmeConfig);
@@ -203,7 +212,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
         await detector.markProcessed(tx);
       } catch (error) {
         throw new DuplicateHistorySaveError(
-          `重複履歴の更新に失敗しました row=${tx.rowIndex}`
+          `重複履歴の更新に失敗しました row=${tx.rowIndex} error=${toErrorMessage(error)}`
         );
       }
       summary.success += 1;
@@ -213,8 +222,16 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
       }
 
       summary.failed += 1;
-      const message = error instanceof Error ? error.message : String(error);
+  const message = toErrorMessage(error);
       console.error(`[登録失敗] 行=${tx.rowIndex} 取引先=${tx.merchant} エラー=${message}`);
+
+      if (
+        userConfig.advanced.includeUiCloseDiagnosticsOnError
+        && closeUiResult
+        && !closeUiResult.ok
+      ) {
+        console.error(`[UI診断] 行=${tx.rowIndex} closeSteps=${JSON.stringify(closeUiResult.steps)}`);
+      }
 
       if (userConfig.advanced.screenshotOnError) {
         const outPath = path.resolve(
@@ -235,7 +252,7 @@ async function importTransactions(page, transactions, runtimeConfig, options, de
   try {
     await detector.flush();
   } catch (error) {
-    throw new DuplicateHistorySaveError('重複履歴の保存確定に失敗しました');
+    throw new DuplicateHistorySaveError(`重複履歴の保存確定に失敗しました error=${toErrorMessage(error)}`);
   }
 
   return summary;
@@ -256,7 +273,7 @@ async function main() {
     runtimeConfig = loadRuntimeConfig(args.config);
     csvResult = loadCsv(args.csv);
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    console.error(toErrorMessage(error));
     process.exitCode = 1;
     return;
   }
@@ -306,7 +323,7 @@ async function main() {
       console.log(`重複=${deduplicated.duplicates.length}`);
       console.log(`解析失敗=${csvResult.parseFailures.length}`);
     } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error));
+      console.error(toErrorMessage(error));
       process.exitCode = 1;
     } finally {
       if (context) {
@@ -314,12 +331,12 @@ async function main() {
       }
     }
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    console.error(toErrorMessage(error));
     process.exitCode = 1;
   }
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(toErrorMessage(error));
   process.exitCode = 1;
 });
