@@ -50,7 +50,7 @@ async function closeDatepickerBeforeSubmit(page, selectors, mfmeConfig) {
     if (input && typeof input.blur === 'function') {
       input.blur();
     }
-  }, { timeout: closeWaitMs }));
+  }, undefined, { timeout: closeWaitMs }));
 
   await runCloseStep(result, 'pressTab', () => dateInput.press('Tab', { timeout: closeWaitMs }));
 
