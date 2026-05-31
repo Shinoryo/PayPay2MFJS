@@ -7,6 +7,7 @@ const {
 
 function createPageMock(options = {}) {
   const calls = [];
+  const waitCalls = [];
 
   const dateInputLocator = {
     async press(key) {
@@ -42,6 +43,7 @@ function createPageMock(options = {}) {
 
   return {
     calls,
+    waitCalls,
     locator(selector) {
       calls.push(`locator:${selector}`);
       if (selector === '#manual-form-modal') {
@@ -49,8 +51,12 @@ function createPageMock(options = {}) {
       }
       return dateInputLocator;
     },
-    async waitForFunction(_predicate, waitOptions) {
+    async waitForFunction(predicate, arg2, arg3) {
+      const hasSelectorArg = typeof arg2 === 'string';
+      const selector = hasSelectorArg ? arg2 : undefined;
+      const waitOptions = hasSelectorArg ? arg3 : arg2;
       calls.push(`waitForFunction:${waitOptions.timeout}`);
+      waitCalls.push({ predicate, selector, waitOptions });
       if (options.waitReject) {
         throw new Error('wait failed');
       }
@@ -83,6 +89,9 @@ test('closeDatepickerBeforeSubmit attempts close steps in order', async () => {
       waitDatepickerHidden: { ok: true, error: null }
     }
   });
+  assert.equal(typeof page.waitCalls[0].predicate, 'function');
+  assert.equal(page.waitCalls[0].selector, undefined);
+  assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 1500 });
 });
 
 test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', async () => {
@@ -114,6 +123,9 @@ test('closeDatepickerBeforeSubmit swallows close step errors and keeps going', a
   assert.match(result.steps.clickModalSafeArea.error, /modal click failed/);
   assert.equal(result.steps.waitDatepickerHidden.ok, false);
   assert.match(result.steps.waitDatepickerHidden.error, /wait failed/);
+  assert.equal(typeof page.waitCalls[0].predicate, 'function');
+  assert.equal(page.waitCalls[0].selector, undefined);
+  assert.deepEqual(page.waitCalls[0].waitOptions, { timeout: 800 });
 });
 
 test('closeDatepickerBeforeSubmit returns diagnostics when some close steps fail', async () => {
