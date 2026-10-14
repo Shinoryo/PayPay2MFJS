@@ -331,7 +331,6 @@ MIT License
 npm ci
 npm test
 npm run lint:md
-npm run compare:fingerprint:python
 npm run test:gcloud:e2e
 npm run smoke:dry-run
 ```
