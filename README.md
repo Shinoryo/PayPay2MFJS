@@ -4,20 +4,20 @@
 
 ### 背景・目的
 
-背景：PayPay 利用明細 CSV を Money Forward ME へ手入力する負担が大きい。
+背景：PayPay の利用明細を Money Forward ME に手入力する負担が大きい。
 
-目的：PayPay 利用明細 CSV の読み取り、仕訳ルール適用、Money Forward ME への登録を自動化し、登録に要する時間を短縮する。
+目的：PayPay 利用明細 CSV を読み込み、仕訳ルールを適用して Money Forward ME に登録する処理を自動化し、登録にかかる時間を短縮する。
 
 ### 機能一覧
 
 - PayPay 利用明細 CSV を読み込み、取引データを解析する。
-- 取引番号プレフィックス除外とカテゴリマッピングを設定ファイルで制御できる。
-- 同じルール配列で、カテゴリ登録と振替登録の両方を制御できる。
-- 特定の入金は固定業務ルールに基づき、Money Forward 登録日を 30 日後へ補正する。
-- Playwright の persistent profile により、初回ログイン後は再ログインなしで実行できる。
-- dry-run モードで登録前に件数確認のみ実行できる。
-- 日付入力後は保存前に datepicker のクローズを試み、UI 重なりによる保存失敗リスクを下げる。
-- 登録失敗時にスクリーンショットを保存できる。
+- 取引番号のプレフィックスによる除外とカテゴリの対応付けを、設定ファイルで指定できる。
+- 同じルール配列で、カテゴリ登録と振替登録を設定できる。
+- 特定の入金に限り、固定ルールに基づいて Money Forward に登録する取引日を 30 日後に補正する。
+- Playwright の永続プロファイルを利用し、初回ログイン後もログイン状態を引き継いで実行できる。
+- dry-run モードでは Money Forward に登録せず、件数だけ確認できる。
+- 日付を入力した後、保存前に datepicker を閉じる処理を試みる。UI の重なりによる保存失敗リスクを軽減する。
+- 登録に失敗した場合にスクリーンショットを保存できる。
 
 ## 入力
 
@@ -27,11 +27,11 @@
 | ---- | ---- | ---- |
 | `--csv=<path>` | 必須 | PayPay 利用明細 CSV ファイルパス |
 | `--config=<path>` | 任意 | 設定 JSON ファイルパス（既定値: config.json） |
-| --headless | 任意 | Edge をヘッドレスモードで起動する |
-| --dry-run | 任意 | 解析とフィルタのみ実行し、MF へ登録しない |
-| --keep-open | 任意 | 終了時にブラウザーを閉じず Enter を待つ（headed 時のみ） |
+| `--headless` | 任意 | Edge をヘッドレスモードで起動する |
+| `--dry-run` | 任意 | 解析とフィルタのみ実行し、MF へ登録しない |
+| `--keep-open` | 任意 | 終了時にブラウザーを閉じず、Enter キーが押されるまで待機する（ヘッドレスモードでは無効） |
 
-補足：--csv が未指定の場合は終了コード 1 を返す。
+補足：`--csv` が指定されていない場合は、終了コード 1 で終了する。
 
 ### 設定 JSON
 
@@ -42,52 +42,51 @@
 | 形式 | JSON |
 | エンコーディング | UTF-8 / UTF-8 BOM |
 
-設定項目:
+設定項目
 
 | キー名 | データ型 | 説明 |
 | ---- | ---- | ---- |
-| mfAccount | string | Money Forward 側の対象口座名 |
-| excludePrefixes | string[] | 取引番号プレフィックス一致で除外 |
-| mappingRules | object[] | 取引先キーワードによるカテゴリ割り当て、または振替登録ルール |
-| categoryMap | object | 中カテゴリ名 -> 大カテゴリ名の対応 |
-| duplicateDetection.backend | string | `local` または `gcloud` |
-| duplicateDetection.databaseId | string | Firestore DB ID（gcloud 使用時。既定値 `(default)`） |
-| duplicateDetection.localStorePath | string | local バックエンドの履歴 JSON パス。相対パスは config.json のあるディレクトリ基準（既定値 `logs/processed.json`） |
-| gcloudCredentialsPath | string | gcloud サービスアカウント JSON パス（gcloud 使用時に必須）。相対パスは config.json のあるディレクトリ基準 |
-| advanced.screenshotOnError | boolean | 登録失敗時にスクリーンショット保存 |
-| advanced.includeUiCloseDiagnosticsOnError | boolean | 登録失敗時に datepicker クローズ処理の診断情報を追加出力（既定値: false） |
+| `mfAccount` | `string` | Money Forward ME で使用する口座名 |
+| `excludePrefixes` | `string[]` | 取引番号が指定したプレフィックスで始まる場合に除外 |
+| `mappingRules` | `object[]` | 取引先のキーワードに応じてカテゴリを割り当てるルール、または振替登録ルール |
+| `categoryMap` | `object` | 中カテゴリ名から大カテゴリ名への対応 |
+| `duplicateDetection.backend` | `string` | `local` または `gcloud` |
+| `duplicateDetection.databaseId` | `string` | Firestore の DB ID（gcloud 使用時。既定値は `(default)`） |
+| `duplicateDetection.localStorePath` | `string` | local バックエンドの重複履歴 JSON の保存先。相対パスは設定ファイルのあるディレクトリを基準に解決する（既定値は `logs/processed.json`） |
+| `gcloudCredentialsPath` | `string` | gcloud バックエンドで使用するサービスアカウント JSON のパス（必須）。相対パスは設定ファイルのあるディレクトリを基準に解決する |
+| `advanced.screenshotOnError` | `boolean` | 登録失敗時にスクリーンショットを保存するかどうか |
+| `advanced.includeUiCloseDiagnosticsOnError` | `boolean` | 登録失敗時に datepicker を閉じる処理の診断情報を出力するかどうか（既定値は `false`） |
 
 `mappingRules` のスキーマ:
 
 | キー名 | データ型 | 必須 | 説明 |
 | ---- | ---- | ---- | ---- |
-| keyword | string | 必須 | `取引先` に対する照合文字列 |
-| matchMode | string | 任意 | `contains`、`starts_with`、`regex`。既定値は `contains` |
-| direction | string | 任意 | `expense`、`income`、`any`。既定値は `any` |
-| priority | number | 任意 | 数値が大きいルールを優先 |
-| category | string | 条件付き | 通常のカテゴリ登録ルールで使う中カテゴリ名 |
-| isTransfer | boolean | 条件付き | `true` の場合はカテゴリ登録ではなく振替登録として扱う |
-| transferAccount | string | 条件付き | 振替相手の口座名。`isTransfer=true` の場合に必須 |
+| `keyword` | `string` | 必須 | `取引先` に対する照合文字列 |
+| `matchMode` | `string` | 任意 | `contains`、`starts_with`、`regex`。既定値は `contains` |
+| `direction` | `string` | 任意 | `expense`、`income`、`any`。既定値は `any` |
+| `priority` | `number` | 任意 | 数値が大きいルールを優先 |
+| `category` | `string` | 条件付き | 通常のカテゴリ登録ルールで使う中カテゴリ名 |
+| `isTransfer` | `boolean` | 条件付き | `true` の場合はカテゴリ登録ではなく振替登録として扱う |
+| `transferAccount` | `string` | 条件付き | 振替相手の口座名。`isTransfer=true` の場合に必須 |
 
-補足:
+補足：
 
-- `category` と `isTransfer=true` は同時指定しない。
+- `category` と `isTransfer=true` は同時に指定しない。
 - `category` を指定したルールは、通常の入出金カテゴリ登録として扱う。
 - `isTransfer=true` のルールは、カテゴリ登録ではなく振替登録として扱う。
-- 同一取引に複数ルールが一致した場合は、`priority` の高い順で評価する。
+- 同一取引に複数のルールが一致した場合は、`priority` の高い順に評価する。
 - `priority` が同じ場合は、`mappingRules` の記述順（上から）を優先する。
-- `direction=expense` の振替ルールは、PayPay を振替元、`transferAccount` を振替先として登録する。
-- `direction=income` の振替ルールは、`transferAccount` を振替元、PayPay を振替先として登録する。
+- `direction=expense` の振替ルールでは、PayPay を振替元、`transferAccount` を振替先として登録する。
+- `direction=income` の振替ルールでは、`transferAccount` を振替元、PayPay を振替先として登録する。
 
-#### パス解決について
+#### パス解決
 
-`duplicateDetection.localStorePath` と `gcloudCredentialsPath` に相対パスを
-指定した場合、その解決基準は config.json のあるディレクトリです。
-例えば、config.json が `/workspace/config.json` の場合：
+`duplicateDetection.localStorePath` と `gcloudCredentialsPath` に相対パスを指定した場合は、設定ファイルが置かれたディレクトリを基準に解決する。
+例えば、設定ファイルが `/workspace/config.json` の場合：
 
 - `logs/processed.json` → `/workspace/logs/processed.json`
 - `./secrets/paypay2mf-credentials.json` → `/workspace/secrets/paypay2mf-credentials.json`
-- `/tmp/processed.json` （絶対パス） → `/tmp/processed.json` （そのまま使用）
+- `/tmp/processed.json` → `/tmp/processed.json`（絶対パスはそのまま使用）
 
 ```json
 {
@@ -134,7 +133,7 @@
 | エンコーディング | UTF-8 / UTF-8 BOM |
 | ヘッダー | 必須 |
 
-主要列:
+主な列
 
 | 列名 | 説明 |
 | ---- | ---- |
@@ -154,16 +153,16 @@
 
 ### 標準出力
 
-通常実行時は、登録結果サマリーを標準出力へ表示する。
+通常実行時は、登録結果のサマリーを標準出力に表示する。
 
 - 成功: 登録成功件数
 - 失敗: 登録失敗件数
-- スキップ: 除外などでスキップされた件数
+- スキップ: 除外などにより登録対象外となった件数
 - 除外: プレフィックス除外件数
 - 重複: 重複検知でスキップした件数
 - 解析失敗: CSV 解析失敗件数
 
-dry-run 時は、以下の集計のみを表示する。
+dry-run モードでは、以下の件数を表示する。
 
 - 合計
 - 解析失敗
@@ -175,9 +174,9 @@ dry-run 時は、以下の集計のみを表示する。
 
 | パス | 説明 |
 | ---- | ---- |
-| .paypay2mf-profile/ | Playwright persistent profile（ログインセッション保持） |
-| artifacts/ | 登録失敗時のスクリーンショット保存先 |
-| logs/processed.json | local バックエンドの重複履歴（`row_fingerprints` 配列） |
+| `.paypay2mf-profile/` | Playwright の永続プロファイル（ログイン状態を保持） |
+| `artifacts/` | 登録失敗時のスクリーンショット保存先 |
+| `logs/processed.json` | local バックエンドの重複履歴（`row_fingerprints` 配列） |
 
 ## 実行方法
 
@@ -190,13 +189,13 @@ npx playwright install
 
 ### 初回ログイン（重要）
 
-1. 初回は --headless を付けずに実行する。
-2. ブラウザーが .paypay2mf-profile を使って起動する。
+1. 初回は `--headless` を付けずに実行する。
+2. ブラウザーは `.paypay2mf-profile` を使って起動する。
 3. 表示されたブラウザーで Money Forward に手動ログインする。
 4. 家計簿画面が表示されたら、ターミナルで Enter を押す。
-5. 2 回目以降は保存済みプロファイルを再利用し、ログインをスキップする。
+5. 2 回目以降は保存済みプロファイルを再利用する。
 
-補足：初回を --headless で実行すると手動ログインできないため、エラーで終了する。
+補足：初回に `--headless` を付けて実行すると手動ログインできないため、エラーで終了する。
 
 ### コマンド例
 
@@ -215,26 +214,26 @@ npm run smoke:dry-run
 | OS | Windows 10 / Windows 11 |
 | Node.js | 24 以上 |
 | ブラウザー | Microsoft Edge（stable、最新版推奨） |
-| ライブラリー | playwright 1.59.1 以上、@google-cloud/firestore 8.5.0 以上 |
+| ライブラリー | Playwright 1.59.1 以上、@google-cloud/firestore 8.5.0 以上 |
 
 ## 処理詳細
 
 1. コマンドライン引数を解析する。
 2. 設定 JSON と UI セレクター設定を読み込む。
 3. PayPay 利用明細 CSV を読み込み、行単位で解析して取引データを生成する。
-4. 次の条件の全てに当てはまる特定の入金だけ、登録用日付を 30 日後へ補正する。
-    条件: `取引内容=ポイント、残高の獲得` かつ
-    `取引方法=PayPayポイント` かつ `取引先` が
-    `ワイモバイル` と `Yahoo!ズバトク` 以外。
-5. ルールに基づきカテゴリを付与し、プレフィックス除外と重複検知を適用する。
-6. 振替ルールに一致した取引は、カテゴリの代わりに振替元・振替先を決定する。
-7. dry-run 指定時は集計のみ出力して終了する（履歴更新なし）。
+4. 次の条件をすべて満たす入金に限り、Money Forward に登録する取引日を 30 日後に補正する。
+    - `取引内容` が `ポイント、残高の獲得`
+    - `取引方法` が `PayPayポイント`
+    - `取引先` が `ワイモバイル` と `Yahoo!ズバトク` のいずれでもない
+5. ルールに基づいてカテゴリを設定し、取引番号のプレフィックスによる除外と重複検知を行う。
+6. 振替ルールに一致する取引では、カテゴリの代わりに振替元と振替先を設定する。
+7. dry-run が指定されている場合は、集計結果を表示して終了する（重複履歴は更新しない）。
 8. ブラウザーを起動し、必要に応じてログイン完了を待つ。
-9. 対象取引を 1 件ずつ Money Forward 手入力画面へ登録する。
-10. 通常ルールは口座とカテゴリを入力し、振替ルールは同一モーダルの振替タブで振替元・振替先を入力する。
-11. 日付入力後は datepicker が残っている場合に備えて、保存前にクローズを試みる。
+9. 対象取引を 1 件ずつ Money Forward の手入力画面に登録する。
+10. 通常ルールでは口座とカテゴリを指定し、振替ルールでは同じモーダルの「振替」タブで振替元と振替先を指定する。
+11. 日付を入力した後、保存前に datepicker を閉じる処理を試みる。
 12. 登録成功後に重複履歴を更新する。
-13. 実行サマリーを出力し、ブラウザーコンテキストを終了する。
+13. 登録結果のサマリーを出力し、ブラウザーコンテキストを終了する。
 
 ```mermaid
 flowchart TD
@@ -250,9 +249,9 @@ flowchart TD
     J --> K[サマリー出力して終了]
 ```
 
-補足:
+補足：
 
-- 重複指紋は PayPay 利用明細 CSV の `取引日` を使って判定し、補正後日付へは切り替えない。
+- 重複判定には PayPay 利用明細 CSV の `取引日` を使う。日付補正後の値は使わない。
 
 ## ログ出力
 
@@ -285,10 +284,10 @@ flowchart TD
 [UI診断] 行=23 closeSteps={"blurInput":{"ok":true,"error":null},"pressTab":{"ok":false,"error":"press failed"},"clickModalSafeArea":{"ok":true,"error":null},"waitDatepickerHidden":{"ok":false,"error":"wait failed"}}
 ```
 
-補足:
+補足：
 
-- `[UI診断]` は `advanced.includeUiCloseDiagnosticsOnError=true` かつ
-    datepicker クローズ手順で失敗が発生した場合のみ出力される。
+- `advanced.includeUiCloseDiagnosticsOnError` が `true` で、datepicker のクローズ処理に
+    失敗した場合に限り、`[UI診断]` を出力する。
 
 ## ライセンス
 
@@ -300,7 +299,7 @@ MIT License
 
 | ライブラリー名 | バージョン | ライセンス |
 | ---- | ---- | ---- |
-| playwright | 1.55.0 以上 | Apache-2.0 |
+| Playwright | 1.59.1 以上 | Apache-2.0 |
 | @google-cloud/firestore | 8.5.0 以上 | Apache-2.0 |
 
 ## 開発詳細
@@ -319,11 +318,11 @@ MIT License
 
 | ファイル | 説明 |
 | ---- | ---- |
-| src/import-paypay-to-mfme.js | CLI エントリポイント（起動・画面操作・実行制御） |
-| src/import-core.js | CSV解析・変換・フィルタなどの純粋ロジック |
-| src/duplicate-detector.js | 重複検知（local / gcloud バックエンド） |
-| src/mfme.config.json | Money Forward UI セレクター・タイムアウト設定 |
-| config_sample.json | ユーザー設定サンプル |
+| `src/import-paypay-to-mfme.js` | CLI のエントリポイント（起動・画面操作・実行制御） |
+| `src/import-core.js` | CSV の解析・変換・フィルタ処理などの純粋ロジック |
+| `src/duplicate-detector.js` | 重複検知（local / gcloud バックエンド） |
+| `src/mfme.config.json` | Money Forward UI のセレクターとタイムアウト設定 |
+| `config_sample.json` | ユーザー設定のサンプル |
 
 ### 検証コマンド
 
@@ -331,7 +330,6 @@ MIT License
 npm ci
 npm test
 npm run lint:md
-npm run compare:fingerprint:python
 npm run test:gcloud:e2e
 npm run smoke:dry-run
 ```
@@ -340,6 +338,6 @@ npm run smoke:dry-run
 
 | バージョン | 日付 | 内容 |
 | ----- | ---------- | -------------- |
-| 1.1.1 | 2026-05-31 | バグ修正: 振替保存時に datepicker が残留してクリックを遮断し、登録がタイムアウトする |
+| 1.1.1 | 2026-05-31 | 不具合修正：振替保存時の datepicker 残留によるタイムアウトを修正 |
 | 1.1.0 | 2026-05-10 | 振替も自動登録できる機能を追加<br>Node.js 24 対応 |
 | 1.0.0 | 2026-05-06 | 初版作成 |
