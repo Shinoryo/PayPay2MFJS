@@ -22,6 +22,9 @@
 | TC-REGEX-02 | regex 不正系 | isRuleMatch / applyMapping | 不正な regex は例外を送出（現状仕様） |
 | TC-KW-01 | 空の keyword | isRuleMatch | 空文字/null/undefined は false |
 | TC-CSV-01 | BOM 付き CSV | loadCsv | BOM を除去して正常に 2 件読み込む |
+| TC-CSV-02 | 空・必須ヘッダー不足 CSV | validateCsvHeaders / loadCsv | 空ファイルおよび必須 11 列不足 CSV で例外を送出 |
+| TC-CSV-03 | ヘッダーのみ・列順・追加列 | validateCsvHeaders / loadCsv | 有効ヘッダーのみは 0 件返却、列順入れ替えと追加列を許容 |
+| TC-CSV-04 | 不正 CSV 時の CLI 終了 | CLI (import-paypay-to-mfme) | 不正ヘッダー・空 CSV でブラウザー起動せず終了コード 1 |
 | TC-TR-01 | 振替ルール正規化 | normalizeConfig | isTransfer と transferAccount を正規化 |
 | TC-TR-02 | 振替ルール適用 | applyMapping | category を使わず振替情報を付与 |
 | TC-TR-03 | 振替口座解決 | resolveTransferAccounts | 入出金方向に応じて振替元・振替先を決定 |
@@ -42,6 +45,11 @@
 | TC-REGEX-02B | applyMapping propagates regex syntax errors | 対象 transaction が 1 件 | mappingRules に不正な regex を含む | 例外を送出する |
 | TC-KW-01A | isRuleMatch rejects empty keyword values | merchant が存在する | keyword=""/null/undefined | すべて false |
 | TC-CSV-01A | loadCsv reads BOM-prefixed CSV fixture file | samples/paypay_sample_bom.csv が存在する | loadCsv(fixturePath) | parseFailures=0, transactions=2 |
+| TC-CSV-02A | validateCsvHeaders accepts reordered headers with extra columns and rejects missing ones | 必須 11 列と追加列の配列、または不足配列 | 列順変更・追加列あり／不足配列 | 有効配列は正常終了、不足配列・非配列は例外送出 |
+| TC-CSV-02B | loadCsv throws when CSV file is empty, whitespace-only, or BOM-only | 一時 CSV ファイルが存在する | 空、空白・改行のみ、UTF-8 BOM のみ | すべて `/CSV ファイルが空です/` で例外送出 |
+| TC-CSV-02C | loadCsv throws when required CSV headers are missing | 一時 CSV ファイルが存在する | ヘッダーのみ不足／データ行あり不足 | `/CSV の必須ヘッダーが不足しています/` で例外送出 |
+| TC-CSV-03A | loadCsv returns empty result for valid header-only CSV with and without BOM | 必須 11 列ヘッダーのみ | BOM なし／BOM 付きヘッダーのみ | `transactions=[]`, `parseFailures=[]` を返却 |
+| TC-CSV-03B | loadCsv accepts reordered required headers and extra columns | 必須 11 列を逆順＋追加列で配置 | 1 件の有効な取引行を含む CSV | `parseFailures=0`, `transactions=1` で正しく解析 |
 | TC-TR-01A | normalizeConfig normalizes transfer rules in mappingRules | transfer rule を含む設定 | isTransfer=true, transferAccount あり | 正規化後も値を保持する |
 | TC-TR-01B | normalizeMappingRule throws when isTransfer and category are both specified | ルールに両方指定 | isTransfer=true, categoryあり | 例外が投げられる |
 | TC-TR-01C | normalizeMappingRule trims and lowercases isTransfer strings | ルールに `isTransfer` が文字列で設定されている | `isTransfer: ' FALSE '` | `isTransfer` は `trim()` + 小文字化で判定され、false と扱われる |
@@ -67,6 +75,9 @@
 | TC-UI-01A | datepicker is explicitly closed before submit click | Money Forward の手入力モーダル表示中 | 日付入力後に保存処理を実行 | 保存前に datepicker クローズを試み、保存クリックへ進む。blur の evaluate timeout は options 第3引数に入る |
 | TC-UI-02A | closeDatepickerBeforeSubmit swallows close step errors and keeps going | close 4 ステップが失敗するモック | evaluate/press/click/wait すべて失敗 | 関数は例外を送出せず、返却値で各ステップの失敗を検証できる。evaluate の arg は undefined、options に timeout が入る |
 | TC-UI-02B | closeDatepickerBeforeSubmit returns diagnostics when some close steps fail | press と wait のみ失敗するモック | press/wait 失敗 | `ok=false` かつ失敗ステップの `error` が保持される。evaluate の arg と options の分離を維持する |
+| TC-CSV-03C | dry-run integration treats valid header-only CSV as 0 target transactions | 必須 11 列ヘッダーのみの一時 CSV | `--dry-run` で CLI 実行 | 終了コード 0、`合計=0`、`対象=0` を出力 |
+| TC-CSV-04A | CLI exits non-zero before browser launch when required CSV headers are missing | 必須列不足のヘッダーのみ／行あり CSV | `--dry-run` あり／なしで CLI 実行 | ブラウザーを起動せず終了コード 1、エラー出力 |
+| TC-CSV-04B | CLI exits non-zero before browser launch when CSV file is empty | 0 バイトの空 CSV | `--dry-run` あり／なしで CLI 実行 | ブラウザーを起動せず終了コード 1、エラー出力 |
 
 ## 5. テストデータ
 
@@ -74,7 +85,8 @@
 - samples/paypay_sample.csv
 - samples/paypay_sample_bom.csv（UTF-8 BOM 付き）
 - 一時ファイル:
-- test/import-core.test.js 内で作成する sample.csv
+- test/import-core.test.js と
+  test/import-dryrun.integration.test.js 内で作成する一時 CSV
 
 ## 6. 実行手順
 
@@ -85,8 +97,9 @@
 
 ## 7. 受け入れ基準
 
-- 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-TR-01, TC-TR-02,
-   TC-TR-03, TC-TR-04, TC-UI-01, TC-UI-02, TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
+- 追加した観点（TC-REGEX-02, TC-KW-01, TC-CSV-01, TC-CSV-02, TC-CSV-03,
+   TC-CSV-04, TC-TR-01, TC-TR-02, TC-TR-03, TC-TR-04, TC-UI-01, TC-UI-02,
+   TC-DUP-02, TC-DUP-03）を満たすテストがすべて成功する。
 - dry-run の既存挙動（高速で、副作用を最小限に抑える）が維持される。
 - 仕様変更なし（不正な regex は例外送出のまま）。
 - 振替ルールは、同じ `mappingRules` 配列内でカテゴリルールと共存できる。

@@ -8,6 +8,7 @@ const {
   DIRECTION_IN,
   DIRECTION_OUT,
   DEFAULT_CATEGORY,
+  REQUIRED_CSV_HEADERS,
   parseArgs,
   parseJsonWithBomSupport,
   normalizeMappingRule,
@@ -25,6 +26,7 @@ const {
   resolveTransferAccounts,
   applyExclude,
   applyDuplicateDetection,
+  validateCsvHeaders,
   loadCsv,
   normalizeAccountName
 } = require('../src/import-core');
@@ -422,4 +424,98 @@ test('loadCsv throws when CSV file does not exist', () => {
     () => loadCsv('/nonexistent/path/missing.csv'),
     (err) => err instanceof Error
   );
+});
+
+test('validateCsvHeaders accepts reordered headers with extra columns and rejects missing ones', () => {
+  assert.doesNotThrow(() => {
+    validateCsvHeaders([...REQUIRED_CSV_HEADERS].reverse().concat(['変換レート（円）', '利用国', '任意列']));
+  });
+
+  assert.throws(
+    () => validateCsvHeaders(['取引日', '取引先']),
+    /CSV の必須ヘッダーが不足しています/
+  );
+  assert.throws(
+    () => validateCsvHeaders(null),
+    /CSV の必須ヘッダーが不足しています/
+  );
+});
+
+test('loadCsv throws when CSV file is empty, whitespace-only, or BOM-only', (t) => {
+  const tempDir = createTempDir();
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+
+  const cases = [
+    { name: 'empty.csv', content: '' },
+    { name: 'whitespace.csv', content: '   \r\n\n  ' },
+    { name: 'bom-only.csv', content: '\uFEFF\r\n' }
+  ];
+
+  for (const testCase of cases) {
+    const csvPath = path.join(tempDir, testCase.name);
+    fs.writeFileSync(csvPath, testCase.content, 'utf8');
+    assert.throws(() => loadCsv(csvPath), /CSV ファイルが空です/);
+  }
+});
+
+test('loadCsv throws when required CSV headers are missing', (t) => {
+  const tempDir = createTempDir();
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+
+  const headerOnlyMissingPath = path.join(tempDir, 'missing-header-only.csv');
+  fs.writeFileSync(headerOnlyMissingPath, '取引日,取引先\n', 'utf8');
+  assert.throws(
+    () => loadCsv(headerOnlyMissingPath),
+    /CSV の必須ヘッダーが不足しています: 出金金額（円）/
+  );
+
+  const withRowsMissingPath = path.join(tempDir, 'missing-with-rows.csv');
+  const csvWithRows = [
+    '取引日,出金金額（円）,入金金額（円）,海外出金金額,通貨,取引内容,取引先,支払い区分,利用者',
+    '2026/05/01 10:11:12,1200,0,-,-,支払い,セブン-イレブン,通常,本人'
+  ].join('\n');
+  fs.writeFileSync(withRowsMissingPath, csvWithRows, 'utf8');
+  assert.throws(
+    () => loadCsv(withRowsMissingPath),
+    /CSV の必須ヘッダーが不足しています: 取引方法, 取引番号/
+  );
+});
+
+test('loadCsv returns empty result for valid header-only CSV with and without BOM', (t) => {
+  const tempDir = createTempDir();
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+
+  const headerLine = REQUIRED_CSV_HEADERS.join(',');
+
+  const plainPath = path.join(tempDir, 'header-only.csv');
+  fs.writeFileSync(plainPath, `${headerLine}\n`, 'utf8');
+  assert.deepEqual(loadCsv(plainPath), { transactions: [], parseFailures: [] });
+
+  const bomPath = path.join(tempDir, 'header-only-bom.csv');
+  fs.writeFileSync(bomPath, `\uFEFF${headerLine}\r\n`, 'utf8');
+  assert.deepEqual(loadCsv(bomPath), { transactions: [], parseFailures: [] });
+});
+
+test('loadCsv accepts reordered required headers and extra columns', (t) => {
+  const tempDir = createTempDir();
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+
+  const csvPath = path.join(tempDir, 'reordered-extra.csv');
+  const csv = [
+    'カスタム列,取引番号,利用者,支払い区分,取引方法,取引先,取引内容,利用国,変換レート（円）,通貨,海外出金金額,入金金額（円）,出金金額（円）,取引日',
+    'memo-extra,TXN-99,本人,通常,PayPay残高,カフェ,支払い,-,-,-,-,0,550,2026/05/02 12:34:56'
+  ].join('\n');
+  fs.writeFileSync(csvPath, csv, 'utf8');
+
+  const result = loadCsv(csvPath);
+  assert.equal(result.parseFailures.length, 0);
+  assert.equal(result.transactions.length, 1);
+  assert.equal(result.transactions[0].merchant, 'カフェ');
+  assert.equal(result.transactions[0].amount, 550);
+  assert.equal(result.transactions[0].direction, DIRECTION_OUT);
+  assert.equal(result.transactions[0].transactionId, 'TXN-99');
+  assert.equal(result.transactions[0].content, '支払い');
+  assert.equal(result.transactions[0].method, 'PayPay残高');
+  assert.equal(result.transactions[0].paymentType, '通常');
+  assert.equal(result.transactions[0].user, '本人');
 });

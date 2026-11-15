@@ -12,6 +12,19 @@ const DEFERRED_INCOME_EXCLUDED_MERCHANTS = new Set([
   'ワイモバイル',
   'Yahoo!ズバトク'
 ]);
+const REQUIRED_CSV_HEADERS = [
+  '取引日',
+  '出金金額（円）',
+  '入金金額（円）',
+  '海外出金金額',
+  '通貨',
+  '取引内容',
+  '取引先',
+  '取引方法',
+  '支払い区分',
+  '利用者',
+  '取引番号'
+];
 
 function parseArgs(argv) {
   const args = {
@@ -332,15 +345,29 @@ async function applyDuplicateDetection(transactions, detector) {
   return { passed, duplicates };
 }
 
+function validateCsvHeaders(headers) {
+  const headerSet = new Set(Array.isArray(headers) ? headers : []);
+  const missingHeaders = REQUIRED_CSV_HEADERS.filter((header) => !headerSet.has(header));
+  if (missingHeaders.length > 0) {
+    throw new Error(`CSV の必須ヘッダーが不足しています: ${missingHeaders.join(', ')}`);
+  }
+}
+
 function loadCsv(csvPath) {
   const rawText = fs.readFileSync(path.resolve(csvPath), 'utf8');
   const text = rawText.startsWith(UTF8_BOM) ? rawText.slice(1) : rawText;
   const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-  if (lines.length < 2) {
-    return { transactions: [], parseFailures: [] };
+  if (lines.length === 0) {
+    throw new Error('CSV ファイルが空です');
   }
 
   const headers = parseCsvLine(lines[0]);
+  validateCsvHeaders(headers);
+
+  if (lines.length === 1) {
+    return { transactions: [], parseFailures: [] };
+  }
+
   const parseFailures = [];
   const transactions = [];
 
@@ -407,6 +434,7 @@ module.exports = {
   DIRECTION_IN,
   DIRECTION_OUT,
   DEFAULT_CATEGORY,
+  REQUIRED_CSV_HEADERS,
   parseArgs,
   parseJsonWithBomSupport,
   normalizeMappingRule,
@@ -424,6 +452,7 @@ module.exports = {
   resolveTransferAccounts,
   applyExclude,
   applyDuplicateDetection,
+  validateCsvHeaders,
   loadCsv,
   normalizeAccountName
 };
